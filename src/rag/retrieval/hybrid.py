@@ -9,13 +9,17 @@ parameter that has to be re-fit per corpus. RRF only needs the ranks.
 TODO(phase-2): fuse(), parallel dispatch to dense and sparse
 """
 
+from typing import Any
+
 from rag.models import RetrievedChunk
 
 RRF_K = 60
 
 
 class HybridRetriever:
-    def search(self, query: str, top_k: int, filters: dict | None = None) -> list[RetrievedChunk]:
+    def search(
+        self, query: str, top_k: int, filters: dict[str, Any] | None = None
+    ) -> list[RetrievedChunk]:
         raise NotImplementedError("TODO(phase-2)")
 
     @staticmethod

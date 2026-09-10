@@ -9,10 +9,11 @@ TODO(phase-4): async worker queue, incremental re-index by content hash
 """
 
 from pathlib import Path
+from typing import Any
 
 
 class IngestionPipeline:
-    def run(self, source: Path) -> dict:
+    def run(self, source: Path) -> dict[str, Any]:
         """Index a file or directory. Returns a summary of what changed."""
         raise NotImplementedError("TODO(phase-1)")
 

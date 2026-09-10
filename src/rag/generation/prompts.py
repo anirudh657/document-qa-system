@@ -10,6 +10,8 @@ Two non-obvious choices encoded here:
    possible failure mode because it looks like success.
 """
 
+from typing import Any
+
 SYSTEM_PROMPT = """You answer questions using only the provided context passages.
 
 Rules:
@@ -32,6 +34,6 @@ PASSAGE_TEMPLATE = """[{chunk_id}] {source} {section}
 {text}"""
 
 
-def order_passages(passages: list) -> list:
+def order_passages(passages: list[Any]) -> list[Any]:
     """Reorder so the highest-scoring passages sit at the edges of the context."""
     raise NotImplementedError("TODO(phase-1)")

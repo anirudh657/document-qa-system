@@ -6,9 +6,13 @@ codes and rare proper nouns — which is precisely what sparse.py is for.
 TODO(phase-1): search(), collection setup, metadata filters
 """
 
+from typing import Any
+
 from rag.models import RetrievedChunk
 
 
 class DenseRetriever:
-    def search(self, query: str, top_k: int, filters: dict | None = None) -> list[RetrievedChunk]:
+    def search(
+        self, query: str, top_k: int, filters: dict[str, Any] | None = None
+    ) -> list[RetrievedChunk]:
         raise NotImplementedError("TODO(phase-1)")

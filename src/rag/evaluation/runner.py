@@ -8,13 +8,14 @@ TODO(phase-4): CI gate that fails on a >2% drop
 """
 
 from pathlib import Path
+from typing import Any
 
 
 class EvalRunner:
-    def run(self, dataset: Path, tags: list[str] | None = None) -> dict:
+    def run(self, dataset: Path, tags: list[str] | None = None) -> dict[str, Any]:
         raise NotImplementedError("TODO(phase-3)")
 
-    def compare(self, run_a: str, run_b: str) -> dict:
+    def compare(self, run_a: str, run_b: str) -> dict[str, Any]:
         raise NotImplementedError("TODO(phase-3)")
 
     def gate(self, max_drop: float = 0.02) -> bool:

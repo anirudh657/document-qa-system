@@ -10,6 +10,8 @@ decides — not intuition.
 TODO(phase-2): rewrite(), expand(), hyde(), filter extraction
 """
 
+from typing import Any
+
 
 class QueryTransformer:
     def rewrite(self, query: str) -> str:
@@ -18,6 +20,6 @@ class QueryTransformer:
     def hyde(self, query: str) -> str:
         raise NotImplementedError("TODO(phase-2)")
 
-    def extract_filters(self, query: str) -> dict:
+    def extract_filters(self, query: str) -> dict[str, Any]:
         """Pull date ranges, source names and doc types out of natural language."""
         raise NotImplementedError("TODO(phase-2)")

@@ -10,6 +10,8 @@ retrieved, no amount of prompting recovers the answer.
 TODO(phase-3): all of the below
 """
 
+from typing import Any
+
 
 def hit_rate_at_k(retrieved_ids: list[str], expected_ids: list[str], k: int) -> float:
     raise NotImplementedError("TODO(phase-3)")
@@ -32,6 +34,6 @@ def answer_relevance(answer: str, question: str) -> float:
     raise NotImplementedError("TODO(phase-3)")
 
 
-def correct_refusal_rate(results: list[dict]) -> float:
+def correct_refusal_rate(results: list[dict[str, Any]]) -> float:
     """Fraction of unanswerable questions the system correctly declined."""
     raise NotImplementedError("TODO(phase-3)")

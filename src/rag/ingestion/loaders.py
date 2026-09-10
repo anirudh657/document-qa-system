@@ -8,12 +8,13 @@ TODO(phase-1): implement PdfLoader, MarkdownLoader, HtmlLoader, TextLoader, Docx
 
 from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import Any
 
 from rag.models import DocumentMeta
 
 
 class LoadedDocument:
-    def __init__(self, text: str, meta: DocumentMeta, sections: list[dict] | None = None):
+    def __init__(self, text: str, meta: DocumentMeta, sections: list[dict[str, Any]] | None = None):
         self.text = text
         self.meta = meta
         self.sections = sections or []
