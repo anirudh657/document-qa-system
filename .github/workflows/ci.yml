@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - name: Lint
+        run: ruff check src tests
+      - name: Format check
+        run: ruff format --check src tests
+      - name: Type check
+        run: mypy src
+
+  test:
+    runs-on: ubuntu-latest
+    services:
+      qdrant:
+        image: qdrant/qdrant:latest
+        ports: ["6333:6333"]
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: rag
+          POSTGRES_PASSWORD: rag
+          POSTGRES_DB: rag
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U rag"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - name: Test
+        run: pytest -v --cov=src/rag --cov-report=term-missing
+        env:
+          QDRANT_URL: http://localhost:6333
+          REDIS_URL: redis://localhost:6379/0
+          POSTGRES_URL: postgresql://rag:rag@localhost:5432/rag
+
+  # Enable once the Phase 3 eval harness exists and a baseline is recorded.
+  # eval:
+  #   runs-on: ubuntu-latest
+  #   if: github.event_name == 'pull_request'
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - run: make eval
+  #     - name: Fail on regression
+  #       run: python -m rag.cli eval-gate --max-drop 0.02

@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Environment
+.env
+.env.local
+*.pem
+
+# Data and artifacts
+data/
+*.db
+*.sqlite3
+storage/
+qdrant_storage/
+models/
+*.faiss
+
+# Eval outputs
+eval/results/
+eval/runs/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp

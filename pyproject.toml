@@ -1,0 +1,70 @@
+[project]
+name = "document-qa-system"
+version = "0.1.0"
+description = "Production-grade RAG system for question answering over a private document corpus"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "anirudh657" }]
+
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.32",
+  "pydantic>=2.9",
+  "pydantic-settings>=2.6",
+  "httpx>=0.27",
+  "qdrant-client>=1.12",
+  "sentence-transformers>=3.3",
+  "rank-bm25>=0.2.2",
+  "pypdf>=5.1",
+  "beautifulsoup4>=4.12",
+  "python-docx>=1.1",
+  "redis>=5.2",
+  "sqlalchemy>=2.0",
+  "psycopg[binary]>=3.2",
+  "structlog>=24.4",
+  "opentelemetry-api>=1.28",
+  "opentelemetry-sdk>=1.28",
+  "opentelemetry-instrumentation-fastapi>=0.49b0",
+  "tenacity>=9.0",
+  "typer>=0.13",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3",
+  "pytest-asyncio>=0.24",
+  "pytest-cov>=6.0",
+  "ruff>=0.8",
+  "mypy>=1.13",
+]
+eval = [
+  "ragas>=0.2",
+  "datasets>=3.1",
+  "pandas>=2.2",
+]
+
+[project.scripts]
+rag = "rag.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/rag"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
