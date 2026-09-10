@@ -1,5 +1,6 @@
 """FastAPI application entry point."""
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -10,7 +11,7 @@ from rag.config import get_settings
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     # TODO(phase-1): connect stores, load embedding and reranker models
     # TODO(phase-1): verify the collection's index fingerprint matches the config —

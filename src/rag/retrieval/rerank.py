@@ -16,5 +16,7 @@ from rag.models import RetrievedChunk
 
 
 class CrossEncoderReranker:
-    def rerank(self, query: str, candidates: list[RetrievedChunk], top_n: int) -> list[RetrievedChunk]:
+    def rerank(
+        self, query: str, candidates: list[RetrievedChunk], top_n: int
+    ) -> list[RetrievedChunk]:
         raise NotImplementedError("TODO(phase-2)")
