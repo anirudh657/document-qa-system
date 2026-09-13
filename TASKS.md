@@ -78,6 +78,9 @@ Goal: nothing ships without a score. This is the phase that makes the project cr
 - [ ] Store eval runs in Postgres with a git SHA
 - [ ] Regression thresholds that fail CI
 - [ ] Results summary rendered to Markdown
+- [ ] - [ ] Pin the LLM to a specific model version (not gemini-flash-latest) before
+      recording any baseline — the alias auto-updates, which would make Phase 2
+      improvements indistinguishable from a model swap
 
 ## Phase 4 — Production Features
 
