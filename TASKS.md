@@ -59,6 +59,8 @@ Goal: measurably better retrieval than Phase 1, with each change ablated.
 - [ ] HyDE behind a feature flag
 - [ ] Metadata filtering at query time
 - [ ] Ablation table: which of the above actually helped, with numbers
+- [ ] - [ ] Strip repeated headers and footers before chunking (URN: 2581258 leaks
+      into chunk text on several pages, adding noise to embeddings)
 
 ## Phase 3 — Evaluation System
 
