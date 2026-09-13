@@ -1,4 +1,10 @@
-"""API request and response schemas."""
+"""API request and response schemas.
+
+These are deliberately separate from the domain models in rag.models. The wire format
+is a contract with callers and should change only when the API changes; the internal
+models change whenever the pipeline does. Coupling them would make every refactor a
+breaking API change.
+"""
 
 from typing import Any
 
@@ -20,7 +26,22 @@ class QueryResponse(BaseModel):
     citations: list[Citation]
     answered: bool
     latency_ms: int
-    cache_hit: bool
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cache_hit: bool = False
+
+
+class SearchHit(BaseModel):
+    chunk_id: str
+    text: str
+    score: float
+    page_number: int | None = None
+    source: str = ""
+
+
+class SearchResponse(BaseModel):
+    query: str
+    hits: list[SearchHit]
 
 
 class IngestRequest(BaseModel):
