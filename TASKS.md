@@ -21,6 +21,8 @@ updates this file directly — no integration, no API, just a file in the repo.
 - [ ] Set up local dev environment and confirm `make services` comes up clean
 - [ ] Collect 20–50 seed documents into `data/`
 - [ ] Confirm LLM provider and get an API key into `.env`
+- [ ] - [ ] Collect 20-50 more text-layer PDFs — one 7-chunk document is enough to
+      build against but far too small to evaluate retrieval on
 
 ## Phase 1 — Basic RAG
 
