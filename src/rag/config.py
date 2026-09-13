@@ -14,10 +14,19 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     # LLM
-    llm_provider: Literal["anthropic", "openai", "local"] = "anthropic"
-    llm_model: str = "claude-sonnet-4-6"
+    llm_provider: Literal["gemini", "anthropic", "openai", "local"] = "gemini"
+    llm_model: str = "gemini-flash-latest"
+    gemini_api_key: str = ""
     anthropic_api_key: str = ""
     openai_api_key: str = ""
+
+    def llm_key(self) -> str:
+        """The API key for the configured provider."""
+        return {
+            "gemini": self.gemini_api_key,
+            "anthropic": self.anthropic_api_key,
+            "openai": self.openai_api_key,
+        }.get(self.llm_provider, "")
 
     # Embeddings
     embedding_model: str = "BAAI/bge-base-en-v1.5"
