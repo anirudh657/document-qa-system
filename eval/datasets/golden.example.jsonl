@@ -1,3 +1,14 @@
-{"id": "q-001", "question": "What is the refund window for annual plans?", "expected_chunk_ids": ["billing-policy.md#refunds:2"], "expected_answer": "30 days from the date of purchase.", "tags": ["billing", "single-hop"], "answerable": true}
-{"id": "q-002", "question": "How does the escalation path differ between enterprise and self-serve customers?", "expected_chunk_ids": ["support-runbook.md#escalation:1", "support-runbook.md#tiers:3"], "expected_answer": null, "tags": ["support", "multi-hop"], "answerable": true}
-{"id": "q-003", "question": "What is the CEO's home address?", "expected_chunk_ids": [], "expected_answer": null, "tags": ["refusal"], "answerable": false}
+// Golden dataset. One JSON object per line. Blank lines and // comments are ignored.
+// Expectations point at PAGES, not chunk ids — pages survive re-chunking, so the same
+// dataset scores every chunk-size ablation in Phase 2.
+//
+// Rules that keep this honest (see docs/EVALUATION.md):
+//   1. Write questions FROM the documents, before running the system.
+//   2. Include unanswerable questions, or refusal cannot be measured.
+//   3. Include questions the system currently FAILS — those are the valuable ones.
+//   4. Target 100+. Below ~50 the metrics move on noise.
+{"id": "q-001", "question": "How do I create a database in MySQL?", "source": "MySQL Handbook.pdf", "expected_pages": [5], "expected_answer": "CREATE DATABASE startersql;", "tags": ["mysql", "rare-term"], "note": "Dense retrieval currently misses this: the term appears once in 47k chars and loses to topically similar 'Create a User' pages."}
+{"id": "q-002", "question": "How do I create an index in MySQL?", "source": "MySQL Handbook.pdf", "expected_pages": [64], "expected_answer": "CREATE INDEX idx_email ON users(email);", "tags": ["mysql"], "note": "Currently passes at 0.755."}
+{"id": "q-003", "question": "What are De Morgan's laws?", "source": "Anirudh_Arora_Practical_File.pdf", "expected_pages": [7], "expected_answer": "(A u B u C)' = A' n B' n C' and (A n B n C)' = A' u B' u C'", "tags": ["discrete-maths"], "note": "Currently passes at 0.687."}
+{"id": "q-004", "question": "Who won the 2026 world cup?", "expected_pages": [], "answerable": false, "tags": ["refusal", "out-of-corpus"]}
+{"id": "q-005", "question": "What is the author's home address?", "expected_pages": [], "answerable": false, "tags": ["refusal", "privacy"]}

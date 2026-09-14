@@ -1,25 +1,136 @@
 """Golden dataset loading and validation.
 
-See docs/EVALUATION.md for the rules that keep the dataset honest. The most important
-one: write the questions from the source documents before running the system. A
-question written after reading model output measures self-agreement, not correctness.
+**Why questions point at pages, not chunk IDs.**
 
-TODO(phase-3): load(), validate(), stratified sampling by tag
+The obvious schema records the chunk IDs a question should retrieve. It does not
+survive this project. Chunk IDs are derived from the document hash and the chunk's
+position, so changing chunk size — the single most important thing Phase 2 ablates —
+renumbers every chunk and invalidates the entire dataset. A golden set you must rewrite
+to run the experiment is not a golden set.
+
+Pages are stable. A fact on page 5 stays on page 5 whatever the chunker does, so the
+same dataset scores a 256-token run and a 1024-token run and the comparison is real.
+Sources are matched by filename for the same reason: paths move, filenames rarely do.
+
+See docs/EVALUATION.md for the rules that keep a dataset honest. The one that matters
+most: write the questions from the source documents, before running the system. A
+question written after reading model output measures self-agreement, not correctness.
 """
 
+from __future__ import annotations
+
+import json
+from collections import Counter
 from pathlib import Path
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
+
+from rag.models import RetrievedChunk
 
 
 class GoldenQuestion(BaseModel):
+    """One test case: a question and where its answer lives."""
+
     id: str
     question: str
-    expected_chunk_ids: list[str]
+    source: str = ""
+    """Filename the answer lives in. Empty means any source counts."""
+
+    expected_pages: list[int] = Field(default_factory=list)
     expected_answer: str | None = None
-    tags: list[str] = []
+    tags: list[str] = Field(default_factory=list)
     answerable: bool = True
+    note: str = ""
+
+    @model_validator(mode="after")
+    def check_consistency(self) -> GoldenQuestion:
+        if self.answerable and not self.expected_pages:
+            raise ValueError(
+                f"{self.id}: answerable questions need expected_pages — otherwise there is "
+                "nothing to score retrieval against"
+            )
+        if not self.answerable and self.expected_pages:
+            raise ValueError(f"{self.id}: unanswerable questions must not list expected_pages")
+        return self
+
+    def relevant_keys(self) -> list[str]:
+        """The page keys a correct retrieval should surface."""
+        return [page_key(self.source, page) for page in self.expected_pages]
+
+
+def page_key(source: str, page: int | None) -> str:
+    """Stable identifier for 'this page of this document'.
+
+    The unit of relevance throughout evaluation. Chunk IDs change when chunking changes;
+    this does not.
+    """
+    return f"{Path(source).name}#p{page}" if page is not None else f"{Path(source).name}#?"
+
+
+def retrieved_keys(hits: list[RetrievedChunk]) -> list[str]:
+    """Convert retrieval results into page keys, preserving rank and dropping repeats.
+
+    Two chunks from the same page are one hit, not two — counting them separately would
+    inflate precision for no reason, and smaller chunk sizes would score better purely
+    by returning more pieces of the same page.
+    """
+    keys: list[str] = []
+    for hit in hits:
+        source = hit.chunk.section_path[0] if hit.chunk.section_path else ""
+        key = page_key(hit.chunk.contextual_header.split(" > ")[0] or source, hit.chunk.page_number)
+        if key not in keys:
+            keys.append(key)
+    return keys
+
+
+class DatasetError(ValueError):
+    """Raised when a golden dataset is malformed or internally inconsistent."""
 
 
 def load_dataset(path: Path) -> list[GoldenQuestion]:
-    raise NotImplementedError("TODO(phase-3)")
+    """Read a JSONL golden set, reporting the line number of any bad row."""
+    if not path.exists():
+        raise DatasetError(f"{path} does not exist. See eval/datasets/golden.example.jsonl.")
+
+    questions: list[GoldenQuestion] = []
+    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        if not line.strip() or line.lstrip().startswith("//"):
+            continue
+        try:
+            questions.append(GoldenQuestion(**json.loads(line)))
+        except json.JSONDecodeError as error:
+            raise DatasetError(f"{path}:{number} is not valid JSON — {error}") from error
+        except ValueError as error:
+            raise DatasetError(f"{path}:{number} — {error}") from error
+
+    if not questions:
+        raise DatasetError(f"{path} contains no questions.")
+
+    duplicates = [qid for qid, count in Counter(q.id for q in questions).items() if count > 1]
+    if duplicates:
+        raise DatasetError(f"{path}: duplicate question ids {duplicates}")
+
+    return questions
+
+
+def filter_by_tags(questions: list[GoldenQuestion], tags: list[str]) -> list[GoldenQuestion]:
+    """Keep questions carrying any of the given tags, for scoring one slice."""
+    wanted = set(tags)
+    return [q for q in questions if wanted & set(q.tags)]
+
+
+def describe(questions: list[GoldenQuestion]) -> dict[str, int | float]:
+    """Summarise a dataset's shape.
+
+    Worth checking before trusting any score. A set with no unanswerable questions
+    cannot measure refusal; one under about fifty questions moves on noise.
+    """
+    unanswerable = len([q for q in questions if not q.answerable])
+    tags = Counter(tag for q in questions for tag in q.tags)
+    return {
+        "questions": len(questions),
+        "answerable": len(questions) - unanswerable,
+        "unanswerable": unanswerable,
+        "sources": len({q.source for q in questions if q.source}),
+        "distinct_tags": len(tags),
+    }
