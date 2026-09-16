@@ -30,6 +30,7 @@ def hit(source: str, page: int | None, chunk_id: str = "c1") -> RetrievedChunk:
             id=chunk_id,
             document_id="d1",
             text="text",
+            source=source,
             contextual_header=f"{source} > Page {page}",
             page_number=page,
         ),
@@ -55,19 +56,25 @@ def test_page_key_ignores_the_directory():
     assert page_key("data/MySQL Handbook.pdf", 5) == page_key("MySQL Handbook.pdf", 5)
 
 
+def test_page_key_ignores_the_extension():
+    """A golden source is a filename; a chunk carries the title, which has no
+    extension. Both must normalise to the same key or nothing ever matches."""
+    assert page_key("MySQL Handbook.pdf", 5) == page_key("MySQL Handbook", 5)
+
+
 def test_page_key_distinguishes_pages():
     assert page_key("a.pdf", 5) != page_key("a.pdf", 6)
 
 
 def test_retrieved_keys_preserve_rank():
     keys = retrieved_keys([hit("a.pdf", 3), hit("a.pdf", 1, "c2")])
-    assert keys == ["a.pdf#p3", "a.pdf#p1"]
+    assert keys == ["a#p3", "a#p1"]
 
 
 def test_two_chunks_from_one_page_count_once():
     """Otherwise smaller chunks would score better purely by returning more pieces."""
     keys = retrieved_keys([hit("a.pdf", 5), hit("a.pdf", 5, "c2")])
-    assert keys == ["a.pdf#p5"]
+    assert keys == ["a#p5"]
 
 
 # --- schema ----------------------------------------------------------------
@@ -144,3 +151,21 @@ def test_describe_counts_answerable_and_unanswerable(tmp_path):
     assert summary["questions"] == 2
     assert summary["answerable"] == 1
     assert summary["unanswerable"] == 1
+
+
+def test_retrieved_keys_use_the_filename_not_the_title():
+    """Regression: matching on the document title silently scored every question 0.
+
+    A PDF's embedded title often differs from its filename, and golden questions are
+    written against filenames. Reading the title meant expected and retrieved keys
+    never matched, and the harness reported a well-formatted table of zeros.
+    """
+    chunk = Chunk(
+        id="c1",
+        document_id="d1",
+        text="text",
+        source="MySQL Handbook.pdf",
+        contextual_header="Some Other Title > Page 5",
+        page_number=5,
+    )
+    assert retrieved_keys([RetrievedChunk(chunk=chunk, dense_score=0.5)]) == ["MySQL Handbook#p5"]

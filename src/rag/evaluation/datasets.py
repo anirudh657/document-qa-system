@@ -63,8 +63,15 @@ def page_key(source: str, page: int | None) -> str:
 
     The unit of relevance throughout evaluation. Chunk IDs change when chunking changes;
     this does not.
+
+    The extension is stripped deliberately. A golden question names its source as a
+    filename ("MySQL Handbook.pdf"), while a chunk carries the document *title*, which
+    the loaders derive from the stem ("MySQL Handbook"). Normalising both sides to the
+    stem is what lets the two meet — without it every question silently fails to match
+    no matter how good retrieval is.
     """
-    return f"{Path(source).name}#p{page}" if page is not None else f"{Path(source).name}#?"
+    stem = Path(source).stem
+    return f"{stem}#p{page}" if page is not None else f"{stem}#?"
 
 
 def retrieved_keys(hits: list[RetrievedChunk]) -> list[str]:
@@ -76,8 +83,7 @@ def retrieved_keys(hits: list[RetrievedChunk]) -> list[str]:
     """
     keys: list[str] = []
     for hit in hits:
-        source = hit.chunk.section_path[0] if hit.chunk.section_path else ""
-        key = page_key(hit.chunk.contextual_header.split(" > ")[0] or source, hit.chunk.page_number)
+        key = page_key(hit.chunk.source, hit.chunk.page_number)
         if key not in keys:
             keys.append(key)
     return keys

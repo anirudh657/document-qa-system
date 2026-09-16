@@ -3,14 +3,14 @@
     rag ingest ./data              index documents
     rag search "de morgan"         retrieval only, no LLM call
     rag ask "what are ..."         full pipeline, cited answer
+    rag eval                       score retrieval against the golden set
     rag status                     configuration and index state
 
 `search` exists separately from `ask` on purpose: retrieval is the half of a RAG
 system that determines answer quality, and being able to inspect it without spending
 an API request makes debugging retrieval much cheaper.
 
-TODO(phase-3): eval
-TODO(phase-4): eval-gate
+TODO(phase-3): generation metrics via a calibrated LLM judge
 """
 
 from __future__ import annotations
@@ -21,6 +21,15 @@ from pathlib import Path
 import typer
 
 from rag.config import Settings, get_settings
+from rag.evaluation.datasets import DatasetError, describe, filter_by_tags, load_dataset
+from rag.evaluation.runner import (
+    EvalRunner,
+    format_report,
+    load_run,
+    regressions,
+    save_run,
+)
+from rag.evaluation.runner import compare as compare_runs
 from rag.generation.generator import Generator
 from rag.generation.llm import LLMError, build_llm
 from rag.ingestion.chunking import FixedSizeChunker
@@ -194,18 +203,81 @@ def status() -> None:
 
 @app.command()
 def eval(
-    dataset: str = "eval/datasets/golden.jsonl",
-    tags: str | None = None,
-    compare: str | None = None,
+    dataset: str = typer.Option("eval/datasets/golden.jsonl", help="Golden set to score"),
+    top_k: int = typer.Option(5, help="Chunks retrieved per question"),
+    tags: str | None = typer.Option(None, help="Comma-separated tags to score only"),
+    baseline: str | None = typer.Option(None, help="Previous run JSON to compare against"),
+    save: bool = typer.Option(True, help="Write the run to eval/runs/"),
 ) -> None:
-    """Score the current build against the golden set."""
-    raise NotImplementedError("TODO(phase-3)")
+    """Score retrieval against the golden set. No LLM calls, so this is free."""
+    settings = get_settings()
+    store = _store(settings)
+
+    if not store.exists():
+        _fail("No collection yet. Run 'rag ingest ./data' first.")
+
+    try:
+        questions = load_dataset(Path(dataset))
+    except DatasetError as error:
+        _fail(str(error))
+
+    if tags:
+        questions = filter_by_tags(questions, [tag.strip() for tag in tags.split(",")])
+        if not questions:
+            _fail(f"No questions tagged {tags}")
+
+    shape = describe(questions)
+    typer.echo(f"Scoring {shape['answerable']} answerable question(s) from {dataset}")
+
+    if shape["questions"] < 50:
+        typer.secho(
+            f"Note: {shape['questions']} questions is below the ~50 needed for stable "
+            "metrics. Treat these numbers as directional.",
+            fg="yellow",
+        )
+
+    run = EvalRunner(_embedder(settings), store, settings).run(questions, top_k, dataset)
+    typer.echo("\n" + format_report(run))
+
+    if baseline:
+        try:
+            previous = load_run(Path(baseline))
+        except (OSError, ValueError) as error:
+            _fail(f"Could not read baseline: {error}")
+
+        typer.secho("\nAgainst baseline", fg="cyan")
+        for name, delta in compare_runs(previous, run).items():
+            sign = "+" if delta["delta"] >= 0 else ""
+            typer.echo(
+                f"  {name:<14} {delta['baseline']:.3f} -> {delta['current']:.3f}  "
+                f"({sign}{delta['delta']:.3f})"
+            )
+
+    if save:
+        path = save_run(run, Path("eval/runs"))
+        typer.secho(f"\nSaved to {path}", dim=True)
 
 
 @app.command("eval-gate")
-def eval_gate(max_drop: float = 0.02) -> None:
-    """Exit non-zero when a metric regressed past the threshold."""
-    raise NotImplementedError("TODO(phase-4)")
+def eval_gate(
+    baseline: str = typer.Argument(..., help="Baseline run JSON"),
+    current: str = typer.Argument(..., help="Current run JSON"),
+    max_drop: float = typer.Option(0.02, help="Largest tolerated drop per metric"),
+) -> None:
+    """Exit non-zero when a metric regressed past the threshold. For CI."""
+    try:
+        before = load_run(Path(baseline))
+        after = load_run(Path(current))
+    except (OSError, ValueError) as error:
+        _fail(f"Could not read runs: {error}")
+
+    dropped = regressions(before, after, max_drop)
+    if dropped:
+        for name, delta in dropped:
+            typer.secho(f"  {name} fell by {abs(delta):.3f}", fg="red", err=True)
+        _fail(f"\n{len(dropped)} metric(s) regressed more than {max_drop}.")
+
+    typer.secho("No regressions.", fg="green")
 
 
 if __name__ == "__main__":

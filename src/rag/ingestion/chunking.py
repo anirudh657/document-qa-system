@@ -18,6 +18,7 @@ import hashlib
 import re
 from abc import ABC, abstractmethod
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any, NamedTuple
 
 from rag.ingestion.loaders import LoadedDocument
@@ -131,6 +132,7 @@ class FixedSizeChunker(Chunker):
             return []
 
         document_id = doc.meta.content_hash
+        source = Path(doc.meta.source_path).name
         groups = self._pack(units)
 
         chunks: list[Chunk] = []
@@ -142,6 +144,7 @@ class FixedSizeChunker(Chunker):
                     id=chunk_id(document_id, index),
                     document_id=document_id,
                     text=text,
+                    source=source,
                     contextual_header=self._header(doc, path),
                     section_path=path,
                     page_number=page,

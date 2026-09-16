@@ -25,6 +25,7 @@ class Chunk(BaseModel):
     id: str
     document_id: str
     text: str
+    source: str = ""
     contextual_header: str = ""
     section_path: list[str] = Field(default_factory=list)
     page_number: int | None = None
