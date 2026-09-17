@@ -28,6 +28,35 @@ raise instead. Chosen conservatively: a genuinely tiny text file is rare, a
 scanned PDF that leaks a few stray characters is common.
 """
 
+MIN_CHARS_PER_PAGE = 200
+"""Below this average, a multi-page PDF is treated as a scan.
+
+The absolute floor above catches a completely empty file but not a scan that leaks
+a few thousand characters of running headers. A 48-page document yielding 5,566
+characters — 116 per page — passed that check and indexed three chunks of pure
+boilerplate. Density is the honest test: a real text page runs 1,500-3,000
+characters, so 200 is far below anything legitimate.
+"""
+
+BOILERPLATE_MIN_PAGES = 3
+"""Pages a document needs before repeated-line detection is worth running."""
+
+BOILERPLATE_THRESHOLD = 0.6
+"""Fraction of pages a line must appear on to count as a header or footer.
+
+Running headers appear on nearly every page; a sentence that happens to recur twice
+in a long document does not. Set high enough that ordinary repetition survives,
+low enough to catch boilerplate missing from title and index pages.
+"""
+
+MAX_BOILERPLATE_LINE_CHARS = 120
+"""Longest line considered as possible boilerplate.
+
+Headers and footers are short. A long repeated passage is far more likely to be
+real content — a recurring definition, a standard disclaimer — and removing it
+would silently delete text the user may ask about.
+"""
+
 
 class EmptyTextLayerError(ValueError):
     """Raised when a file parses correctly but contains no extractable text.
@@ -83,6 +112,39 @@ def _guard_empty(text: str, path: Path, hint: str) -> None:
         )
 
 
+def find_boilerplate(pages: list[str]) -> set[str]:
+    """Identify running headers and footers by how often they repeat.
+
+    Detection is by frequency rather than by pattern, so no filename, course code or
+    page-number format is hardcoded — the same logic handles any document.
+
+    This matters more than it sounds. Boilerplate does not merely waste tokens: a
+    chunk that is mostly repeated header text resembles every other page, so it wins
+    retrieval slots on weak queries and pushes real content out of the results.
+    """
+    if len(pages) < BOILERPLATE_MIN_PAGES:
+        return set()
+
+    counts: dict[str, int] = {}
+    for page in pages:
+        for line in {ln.strip() for ln in page.splitlines() if ln.strip()}:
+            if len(line) <= MAX_BOILERPLATE_LINE_CHARS:
+                counts[line] = counts.get(line, 0) + 1
+
+    needed = max(BOILERPLATE_MIN_PAGES, int(len(pages) * BOILERPLATE_THRESHOLD))
+    return {line for line, count in counts.items() if count >= needed}
+
+
+def _strip_boilerplate(page: str, boilerplate: set[str]) -> str:
+    """Remove boilerplate lines, and bare page numbers left stranded beside them."""
+    kept = [
+        line
+        for line in page.splitlines()
+        if line.strip() and line.strip() not in boilerplate and not line.strip().isdigit()
+    ]
+    return _normalise("\n".join(kept))
+
+
 class Loader(ABC):
     extensions: tuple[str, ...] = ()
     doc_type: str = "unknown"
@@ -116,12 +178,20 @@ class PdfLoader(Loader):
         from pypdf import PdfReader
 
         reader = PdfReader(str(path))
+
+        # First pass: extract every page, so repeated lines can be counted across the
+        # whole document. Boilerplate cannot be identified from one page in isolation.
+        raw_pages = [_normalise(page.extract_text() or "") for page in reader.pages]
+        self._guard_density(raw_pages, path)
+
+        boilerplate = find_boilerplate(raw_pages)
+
         parts: list[str] = []
         sections: list[dict[str, Any]] = []
         cursor = 0
 
-        for number, page in enumerate(reader.pages, start=1):
-            page_text = _normalise(page.extract_text() or "")
+        for number, raw in enumerate(raw_pages, start=1):
+            page_text = _strip_boilerplate(raw, boilerplate) if boilerplate else raw
             if not page_text:
                 continue
             sections.append(
@@ -143,6 +213,20 @@ class PdfLoader(Loader):
             title = str(reader.metadata.title).strip() or None
 
         return LoadedDocument(text, self._meta(path, title, len(reader.pages)), sections)
+
+    @staticmethod
+    def _guard_density(pages: list[str], path: Path) -> None:
+        """Reject a PDF whose pages are too sparse to be anything but a scan."""
+        if len(pages) < BOILERPLATE_MIN_PAGES:
+            return
+        total = sum(len(page.strip()) for page in pages)
+        per_page = total / len(pages)
+        if per_page < MIN_CHARS_PER_PAGE:
+            raise EmptyTextLayerError(
+                f"{path.name}: {total} characters across {len(pages)} pages "
+                f"({per_page:.0f} per page). A text page runs 1,500-3,000 characters, so "
+                "this is a scanned or photographed document. It needs OCR before indexing."
+            )
 
 
 class TextLoader(Loader):

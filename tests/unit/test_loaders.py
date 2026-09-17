@@ -9,6 +9,8 @@ from pathlib import Path
 import pytest
 
 from rag.ingestion.loaders import (
+    MIN_CHARS_PER_PAGE,
+    MIN_EXTRACTABLE_CHARS,
     SUPPORTED_EXTENSIONS,
     EmptyTextLayerError,
     HtmlLoader,
@@ -17,6 +19,7 @@ from rag.ingestion.loaders import (
     TextLoader,
     UnsupportedFormatError,
     content_hash,
+    find_boilerplate,
     load,
     loader_for,
 )
@@ -116,3 +119,62 @@ def test_content_hash_is_stable_and_content_sensitive(tmp_path: Path):
 
     b.write_text(BODY + " changed", encoding="utf-8")
     assert content_hash(a) != content_hash(b)
+
+
+# --- boilerplate detection -------------------------------------------------
+
+
+def make_pages(count: int, header: str = "URN: 2581258 CSE25304P") -> list[str]:
+    return [f"{header}\n{header}\nContent unique to page {n} about a topic." for n in range(count)]
+
+
+def test_running_header_is_detected():
+    assert "URN: 2581258 CSE25304P" in find_boilerplate(make_pages(10))
+
+
+def test_unique_content_is_never_boilerplate():
+    boilerplate = find_boilerplate(make_pages(10))
+    assert not any("unique to page" in line for line in boilerplate)
+
+
+def test_a_line_on_a_few_pages_is_not_boilerplate():
+    pages = make_pages(10)
+    pages[0] += "\nA sentence that happens to appear twice."
+    pages[1] += "\nA sentence that happens to appear twice."
+    assert not any("happens to appear" in line for line in find_boilerplate(pages))
+
+
+def test_short_documents_are_left_alone():
+    """Two pages is not enough evidence to call anything a running header."""
+    assert find_boilerplate(make_pages(2)) == set()
+
+
+def test_long_repeated_passages_are_kept():
+    """A long recurring passage is far more likely to be real content."""
+    passage = "This standard definition is repeated in full on every single page " * 3
+    pages = [f"{passage}\nPage {n} content." for n in range(10)]
+    assert passage.strip() not in find_boilerplate(pages)
+
+
+def test_a_header_missing_from_the_title_page_is_still_caught():
+    pages = make_pages(10)
+    pages[0] = "Title page with no header at all."
+    assert "URN: 2581258 CSE25304P" in find_boilerplate(pages)
+
+
+def test_boilerplate_survives_an_empty_page_list():
+    assert find_boilerplate([]) == set()
+
+
+# --- scan detection by density ---------------------------------------------
+
+
+def test_sparse_pages_are_rejected_as_a_scan(tmp_path: Path):
+    """Regression: a 48-page scan yielding 116 chars/page passed the absolute floor.
+
+    The total (5,566) cleared MIN_EXTRACTABLE_CHARS easily, so three chunks of pure
+    header text were indexed. Density is the honest test.
+    """
+    pages = ["Page header only"] * 20
+    assert sum(len(p) for p in pages) > MIN_EXTRACTABLE_CHARS
+    assert sum(len(p) for p in pages) / len(pages) < MIN_CHARS_PER_PAGE
