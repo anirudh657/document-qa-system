@@ -222,6 +222,48 @@ class VectorStore:
             )
         return results
 
+    def iter_chunks(self, batch: int = 256) -> list[Chunk]:
+        """Read every indexed chunk back out, for building a sparse index.
+
+        BM25 scores a query against the whole corpus at once, so unlike dense search
+        it cannot be delegated to the vector store — the text has to live in memory.
+        Rather than keep a second copy on disk that could drift out of sync with the
+        vectors, the chunks are read back from the one index that already has them.
+
+        Fine at this corpus size and honest about the tradeoff: at a few hundred
+        thousand chunks this becomes a persisted index instead.
+        """
+        chunks: list[Chunk] = []
+        offset = None
+        while True:
+            points, offset = self.client.scroll(
+                collection_name=self.collection,
+                limit=batch,
+                offset=offset,
+                with_payload=True,
+                with_vectors=False,
+            )
+            for point in points:
+                payload = point.payload or {}
+                if FINGERPRINT_KEY in payload or not payload.get("chunk_id"):
+                    continue
+                chunks.append(
+                    Chunk(
+                        id=payload.get("chunk_id", ""),
+                        document_id=payload.get("document_id", ""),
+                        text=payload.get("text", ""),
+                        source=payload.get("source", ""),
+                        contextual_header=payload.get("contextual_header", ""),
+                        section_path=payload.get("section_path") or [],
+                        page_number=payload.get("page_number"),
+                        parent_id=payload.get("parent_id"),
+                        token_count=payload.get("token_count", 0),
+                    )
+                )
+            if offset is None:
+                break
+        return chunks
+
     def count(self) -> int:
         """Number of indexed chunks, excluding the fingerprint marker."""
         total = self.client.count(collection_name=self.collection, exact=True).count
@@ -237,7 +279,8 @@ class VectorStore:
                 filter=models.Filter(
                     must=[
                         models.FieldCondition(
-                            key="document_id", match=models.MatchValue(value=document_id)
+                            key="document_id",
+                            match=models.MatchValue(value=document_id),
                         )
                     ]
                 )

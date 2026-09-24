@@ -53,6 +53,14 @@ class Settings(BaseSettings):
     sparse_top_k: int = 25
     chunk_size: int = 512
     chunk_overlap: int = 64
+    enable_hybrid: bool = True
+    """Run BM25 alongside dense retrieval and fuse the results.
+
+    On by default because the two cover each other's blind spots. Turn it off to
+    measure what dense retrieval alone achieves — the comparison is the point.
+    """
+
+    rrf_k: int = 60
     enable_hyde: bool = False
     enable_query_rewrite: bool = True
 

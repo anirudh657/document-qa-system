@@ -35,6 +35,7 @@ from rag.generation.llm import LLMError, build_llm
 from rag.ingestion.chunking import FixedSizeChunker
 from rag.ingestion.embedding import build_embedder
 from rag.ingestion.pipeline import IngestionPipeline
+from rag.retrieval.hybrid import HybridRetriever, build_sparse
 from rag.retrieval.store import IndexFingerprintMismatchError, VectorStore
 
 app = typer.Typer(help="Document QA System", no_args_is_help=True)
@@ -55,6 +56,18 @@ def _embedder(settings: Settings):  # type: ignore[no-untyped-def]
         settings.embedding_dim,
         settings.embedding_batch_size,
     )
+
+
+def _retriever(settings: Settings, store: VectorStore, embedder):  # type: ignore[no-untyped-def]
+    """Build the configured retriever.
+
+    Hybrid needs the corpus in memory for BM25, so the sparse index is built here from
+    whatever is already in the vector store rather than kept as a second copy on disk
+    that could drift out of sync with the vectors.
+    """
+    if not settings.enable_hybrid:
+        return None
+    return HybridRetriever(store, embedder, build_sparse(store), k=settings.rrf_k)
 
 
 def _fail(message: str) -> None:
@@ -118,14 +131,31 @@ def search(
     if not store.exists():
         _fail("No collection yet. Run 'rag ingest ./data' first.")
 
-    hits = store.search(_embedder(settings).embed_query(query), top_k=top_k)
+    embedder = _embedder(settings)
+    retriever = _retriever(settings, store, embedder)
+    hits = (
+        retriever.search(query, top_k=top_k)
+        if retriever
+        else store.search(embedder.embed_query(query), top_k=top_k)
+    )
     if not hits:
         typer.echo("No matches.")
         return
 
     for rank, hit in enumerate(hits, start=1):
         page = f"page {hit.chunk.page_number}" if hit.chunk.page_number else "—"
-        typer.secho(f"\n{rank}. {hit.final_score:.3f}  {page}", fg="cyan")
+        found_by = ""
+        if hit.fusion_score is not None:
+            sources = [
+                name
+                for name, score in (
+                    ("dense", hit.dense_score),
+                    ("bm25", hit.sparse_score),
+                )
+                if score is not None
+            ]
+            found_by = f"  [{'+'.join(sources)}]"
+        typer.secho(f"\n{rank}. {hit.final_score:.3f}  {page}{found_by}", fg="cyan")
         typer.echo(f"   {hit.chunk.contextual_header}")
         typer.echo(f"   {hit.chunk.text[:220].strip()}")
 
@@ -147,7 +177,13 @@ def ask(
     except LLMError as error:
         _fail(str(error))
 
-    passages = store.search(_embedder(settings).embed_query(question), top_k=top_k)
+    embedder = _embedder(settings)
+    retriever = _retriever(settings, store, embedder)
+    passages = (
+        retriever.search(question, top_k=top_k)
+        if retriever
+        else store.search(embedder.embed_query(question), top_k=top_k)
+    )
 
     try:
         answer = asyncio.run(Generator(llm).generate(question, passages))
@@ -185,6 +221,9 @@ def status() -> None:
     typer.secho("Configuration", fg="cyan")
     typer.echo(f"  embedding   {settings.embedding_model} ({settings.embedding_dim}d)")
     typer.echo(f"  chunking    size={settings.chunk_size} overlap={settings.chunk_overlap}")
+    typer.echo(
+        f"  retrieval   {'hybrid (dense + bm25)' if settings.enable_hybrid else 'dense only'}"
+    )
     typer.echo(f"  llm         {settings.llm_provider} / {settings.llm_model}")
     typer.echo(f"  api key     {'set' if settings.llm_key() else 'MISSING'}")
     typer.echo(f"  fingerprint {settings.index_fingerprint()}")
@@ -236,7 +275,10 @@ def eval(
             fg="yellow",
         )
 
-    run = EvalRunner(_embedder(settings), store, settings).run(questions, top_k, dataset)
+    embedder = _embedder(settings)
+    run = EvalRunner(embedder, store, settings, _retriever(settings, store, embedder)).run(
+        questions, top_k, dataset
+    )
     typer.echo("\n" + format_report(run))
 
     if baseline:

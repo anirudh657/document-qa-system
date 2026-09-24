@@ -19,6 +19,7 @@ import json
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from rag.config import Settings
 from rag.evaluation.datasets import GoldenQuestion, retrieved_keys
@@ -99,13 +100,30 @@ def git_sha() -> str:
 
 
 class EvalRunner:
-    def __init__(self, embedder: Embedder, store: VectorStore, settings: Settings):
+    def __init__(
+        self,
+        embedder: Embedder,
+        store: VectorStore,
+        settings: Settings,
+        retriever: Any = None,
+    ):
+        """`retriever`, when given, replaces plain dense search.
+
+        Passing a HybridRetriever here is what makes a dense-versus-hybrid comparison
+        possible on the same golden set: only the retrieval step changes, so any
+        difference in the metrics is attributable to it and nothing else.
+        """
+        self.retriever = retriever
         self.embedder = embedder
         self.store = store
         self.settings = settings
 
     def score_question(self, question: GoldenQuestion, top_k: int) -> QuestionResult:
-        hits = self.store.search(self.embedder.embed_query(question.question), top_k=top_k)
+        hits = (
+            self.retriever.search(question.question, top_k=top_k)
+            if self.retriever is not None
+            else self.store.search(self.embedder.embed_query(question.question), top_k=top_k)
+        )
         retrieved = retrieved_keys(hits)
         expected = question.relevant_keys()
 
