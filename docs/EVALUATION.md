@@ -88,3 +88,27 @@ Fill this in as you go. The Phase 1 row must be recorded before Phase 2 work beg
 | + rerank | 2 | — | — | — | — | — | — | — |
 | + rewrite | 2 | — | — | — | — | — | — | — |
 | final | 5 | — | — | — | — | — | — | — |
+
+## Chunk size ablation
+
+34-question golden set, 3 documents, BAAI/bge-base-en-v1.5, top_k=5, overlap=64,
+dense retrieval only.
+
+| chunk_size | Hit@5 | MRR | NDCG@10 | Precision@5 | Recall@5 |
+| --- | --- | --- | --- | --- | --- |
+| 128 | 0.625 | 0.594 | 0.572 | 0.278 | 0.583 |
+| **160** | **0.656** | 0.579 | **0.583** | 0.258 | **0.630** |
+| 200 | 0.656 | 0.600 | 0.571 | 0.218 | 0.604 |
+| 256 | 0.625 | 0.534 | 0.524 | 0.193 | 0.573 |
+
+Hit rate peaks at 160-200 and falls either side. Precision decreases monotonically
+as chunks grow, which is the expected mechanism: a larger chunk carries more
+irrelevant text alongside the relevant passage. Everything at 256 and above is worse
+on every metric.
+
+160 chosen: same hit rate as 200, with better precision (+0.040) and recall (+0.026).
+200 wins only MRR (+0.021).
+
+Caveat: at 32 answerable questions a 0.02 difference is not resolvable. The
+defensible claim is that 160 and 200 are indistinguishable and that anything above
+256 is worse.
