@@ -34,8 +34,23 @@ class Settings(BaseSettings):
     embedding_batch_size: int = 64
 
     # Reranker
+    enable_rerank: bool = True
+    """Rescore retrieved candidates with a cross-encoder before answering.
+
+    On by default: the golden set shows six of eleven retrieval failures returning the
+    page directly beside the correct one, which is a ranking-precision problem. Turn it
+    off to measure retrieval without it — the comparison is the point.
+    """
+
     reranker_model: str = "BAAI/bge-reranker-base"
-    rerank_candidates: int = 50
+    rerank_candidates: int = 25
+    """Passages scored by the cross-encoder per query.
+
+    Wider finds more, but every candidate is a forward pass, so this is the main
+    latency and cost lever. It also caps what reranking can achieve: a page missing
+    from the pool cannot be promoted into the results.
+    """
+
     rerank_top_n: int = 5
 
     # Stores

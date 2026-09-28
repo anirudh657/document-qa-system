@@ -36,6 +36,7 @@ from rag.ingestion.chunking import FixedSizeChunker
 from rag.ingestion.embedding import build_embedder
 from rag.ingestion.pipeline import IngestionPipeline
 from rag.retrieval.hybrid import HybridRetriever, build_sparse
+from rag.retrieval.rerank import Reranker, RerankingRetriever
 from rag.retrieval.store import IndexFingerprintMismatchError, VectorStore
 
 app = typer.Typer(help="Document QA System", no_args_is_help=True)
@@ -65,9 +66,25 @@ def _retriever(settings: Settings, store: VectorStore, embedder):  # type: ignor
     whatever is already in the vector store rather than kept as a second copy on disk
     that could drift out of sync with the vectors.
     """
-    if not settings.enable_hybrid:
-        return None
-    return HybridRetriever(store, embedder, build_sparse(store), k=settings.rrf_k)
+    retriever = None
+    if settings.enable_hybrid:
+        retriever = HybridRetriever(
+            store, embedder, build_sparse(store), k=settings.rrf_k
+        )
+
+    if not settings.enable_rerank:
+        return retriever
+
+    if retriever is None:
+        retriever = HybridRetriever(
+            store, embedder, sparse=None, candidates=settings.rerank_candidates
+        )
+
+    return RerankingRetriever(
+        retriever,
+        Reranker(settings.reranker_model),
+        candidates=settings.rerank_candidates,
+    )
 
 
 def _fail(message: str) -> None:
@@ -109,7 +126,9 @@ def ingest(
 
     for result in report.results:
         if result.ok:
-            typer.secho(f"  ok    {result.path.name} — {result.chunks} chunks", fg="green")
+            typer.secho(
+                f"  ok    {result.path.name} — {result.chunks} chunks", fg="green"
+            )
         else:
             typer.secho(f"  skip  {result.path.name} — {result.skipped}", fg="yellow")
 
@@ -145,7 +164,9 @@ def search(
     for rank, hit in enumerate(hits, start=1):
         page = f"page {hit.chunk.page_number}" if hit.chunk.page_number else "—"
         found_by = ""
-        if hit.fusion_score is not None:
+        if hit.rerank_score is not None:
+            found_by = f"  [reranked {hit.rerank_score:+.2f}]"
+        elif hit.fusion_score is not None:
             sources = [
                 name
                 for name, score in (
@@ -220,7 +241,9 @@ def status() -> None:
 
     typer.secho("Configuration", fg="cyan")
     typer.echo(f"  embedding   {settings.embedding_model} ({settings.embedding_dim}d)")
-    typer.echo(f"  chunking    size={settings.chunk_size} overlap={settings.chunk_overlap}")
+    typer.echo(
+        f"  chunking    size={settings.chunk_size} overlap={settings.chunk_overlap}"
+    )
     typer.echo(
         f"  retrieval   {'hybrid (dense + bm25)' if settings.enable_hybrid else 'dense only'}"
     )
@@ -235,17 +258,23 @@ def status() -> None:
             typer.echo(f"  {settings.qdrant_url} — {store.count()} chunks indexed")
         else:
             typer.echo(f"  {settings.qdrant_url} — reachable, no collection yet")
-    except Exception as error:
-        typer.secho(f"  {settings.qdrant_url} — unreachable ({type(error).__name__})", fg="red")
+    except Exception as error:  # noqa: BLE001 - status must report, never crash
+        typer.secho(
+            f"  {settings.qdrant_url} — unreachable ({type(error).__name__})", fg="red"
+        )
         typer.echo("  Is Qdrant running? Try: docker compose up -d")
 
 
 @app.command()
 def eval(
-    dataset: str = typer.Option("eval/datasets/golden.jsonl", help="Golden set to score"),
+    dataset: str = typer.Option(
+        "eval/datasets/golden.jsonl", help="Golden set to score"
+    ),
     top_k: int = typer.Option(5, help="Chunks retrieved per question"),
     tags: str | None = typer.Option(None, help="Comma-separated tags to score only"),
-    baseline: str | None = typer.Option(None, help="Previous run JSON to compare against"),
+    baseline: str | None = typer.Option(
+        None, help="Previous run JSON to compare against"
+    ),
     save: bool = typer.Option(True, help="Write the run to eval/runs/"),
 ) -> None:
     """Score retrieval against the golden set. No LLM calls, so this is free."""
@@ -276,9 +305,9 @@ def eval(
         )
 
     embedder = _embedder(settings)
-    run = EvalRunner(embedder, store, settings, _retriever(settings, store, embedder)).run(
-        questions, top_k, dataset
-    )
+    run = EvalRunner(
+        embedder, store, settings, _retriever(settings, store, embedder)
+    ).run(questions, top_k, dataset)
     typer.echo("\n" + format_report(run))
 
     if baseline:
