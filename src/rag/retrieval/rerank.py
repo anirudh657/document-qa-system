@@ -77,7 +77,7 @@ class Reranker:
             candidates[0].rerank_score = 1.0
             return list(candidates)
 
-        pairs = [(query, hit.chunk.text) for hit in candidates]
+        pairs = [(query, hit.chunk.embedding_text()) for hit in candidates]
         scores = self.model.predict(pairs, batch_size=self.batch_size, show_progress_bar=False)
 
         for hit, score in zip(candidates, scores, strict=True):
@@ -155,6 +155,7 @@ class RerankingRetriever:
         self.last_error = ""
         try:
             return self.reranker.rerank(query, pool, top_n=top_k)
-        except Exception as error:  # noqa: BLE001 - a bad rerank must not lose the answer
+        # A bad rerank must not lose the answer; fall back to the retriever's order.
+        except Exception as error:
             self.last_error = f"{type(error).__name__}: {error}"
             return pool[:top_k]

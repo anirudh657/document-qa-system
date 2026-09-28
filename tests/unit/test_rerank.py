@@ -87,16 +87,14 @@ def test_the_candidate_pool_is_wider_than_top_k(pool):
     ranked eighth could never be promoted — which is the entire reason to rerank.
     """
     retriever = StubRetriever(pool)
-    RerankingRetriever(retriever, ScriptedReranker(), candidates=10).search(
-        "q", top_k=3
-    )
+    RerankingRetriever(retriever, ScriptedReranker(), candidates=10).search("q", top_k=3)
     assert retriever.requested == [10]
 
 
 def test_top_k_is_respected_after_reranking(pool):
-    result = RerankingRetriever(
-        StubRetriever(pool), ScriptedReranker(), candidates=10
-    ).search("q", top_k=4)
+    result = RerankingRetriever(StubRetriever(pool), ScriptedReranker(), candidates=10).search(
+        "q", top_k=4
+    )
     assert len(result) == 4
 
 
@@ -111,9 +109,7 @@ def test_reranking_can_promote_a_low_ranked_candidate(pool):
 
 def test_the_reranker_sees_the_whole_pool_not_just_top_k(pool):
     reranker = ScriptedReranker()
-    RerankingRetriever(StubRetriever(pool), reranker, candidates=10).search(
-        "q", top_k=2
-    )
+    RerankingRetriever(StubRetriever(pool), reranker, candidates=10).search("q", top_k=2)
     assert reranker.calls[0][1] == 10
 
 
@@ -125,18 +121,14 @@ def test_an_empty_result_skips_the_reranker():
 
 def test_a_failing_reranker_falls_back_to_the_original_order(pool):
     """A worse ranking beats no answer at all."""
-    wrapper = RerankingRetriever(
-        StubRetriever(pool), ScriptedReranker(fail=True), candidates=10
-    )
+    wrapper = RerankingRetriever(StubRetriever(pool), ScriptedReranker(fail=True), candidates=10)
     result = wrapper.search("q", top_k=3)
     assert ids(result) == ["a", "b", "c"]
 
 
 def test_a_reranker_failure_is_recorded(pool):
     """Silent degradation is the thing to avoid — the trace must say it happened."""
-    wrapper = RerankingRetriever(
-        StubRetriever(pool), ScriptedReranker(fail=True), candidates=10
-    )
+    wrapper = RerankingRetriever(StubRetriever(pool), ScriptedReranker(fail=True), candidates=10)
     wrapper.search("q", top_k=3)
     assert "RuntimeError" in wrapper.last_error
 

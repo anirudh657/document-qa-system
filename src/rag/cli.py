@@ -68,9 +68,7 @@ def _retriever(settings: Settings, store: VectorStore, embedder):  # type: ignor
     """
     retriever = None
     if settings.enable_hybrid:
-        retriever = HybridRetriever(
-            store, embedder, build_sparse(store), k=settings.rrf_k
-        )
+        retriever = HybridRetriever(store, embedder, build_sparse(store), k=settings.rrf_k)
 
     if not settings.enable_rerank:
         return retriever
@@ -126,9 +124,7 @@ def ingest(
 
     for result in report.results:
         if result.ok:
-            typer.secho(
-                f"  ok    {result.path.name} — {result.chunks} chunks", fg="green"
-            )
+            typer.secho(f"  ok    {result.path.name} — {result.chunks} chunks", fg="green")
         else:
             typer.secho(f"  skip  {result.path.name} — {result.skipped}", fg="yellow")
 
@@ -241,12 +237,16 @@ def status() -> None:
 
     typer.secho("Configuration", fg="cyan")
     typer.echo(f"  embedding   {settings.embedding_model} ({settings.embedding_dim}d)")
-    typer.echo(
-        f"  chunking    size={settings.chunk_size} overlap={settings.chunk_overlap}"
-    )
-    typer.echo(
-        f"  retrieval   {'hybrid (dense + bm25)' if settings.enable_hybrid else 'dense only'}"
-    )
+    typer.echo(f"  chunking    size={settings.chunk_size} overlap={settings.chunk_overlap}")
+
+    stages = ["dense"]
+    if settings.enable_hybrid:
+        stages.append("bm25")
+    line = " + ".join(stages)
+    if settings.enable_rerank:
+        line += f" -> rerank ({settings.reranker_model}, {settings.rerank_candidates} candidates)"
+    typer.echo(f"  retrieval   {line}")
+
     typer.echo(f"  llm         {settings.llm_provider} / {settings.llm_model}")
     typer.echo(f"  api key     {'set' if settings.llm_key() else 'MISSING'}")
     typer.echo(f"  fingerprint {settings.index_fingerprint()}")
@@ -258,23 +258,18 @@ def status() -> None:
             typer.echo(f"  {settings.qdrant_url} — {store.count()} chunks indexed")
         else:
             typer.echo(f"  {settings.qdrant_url} — reachable, no collection yet")
-    except Exception as error:  # noqa: BLE001 - status must report, never crash
-        typer.secho(
-            f"  {settings.qdrant_url} — unreachable ({type(error).__name__})", fg="red"
-        )
+    # Status must report, never crash: a failure here is information, not an error.
+    except Exception as error:
+        typer.secho(f"  {settings.qdrant_url} — unreachable ({type(error).__name__})", fg="red")
         typer.echo("  Is Qdrant running? Try: docker compose up -d")
 
 
 @app.command()
 def eval(
-    dataset: str = typer.Option(
-        "eval/datasets/golden.jsonl", help="Golden set to score"
-    ),
+    dataset: str = typer.Option("eval/datasets/golden.jsonl", help="Golden set to score"),
     top_k: int = typer.Option(5, help="Chunks retrieved per question"),
     tags: str | None = typer.Option(None, help="Comma-separated tags to score only"),
-    baseline: str | None = typer.Option(
-        None, help="Previous run JSON to compare against"
-    ),
+    baseline: str | None = typer.Option(None, help="Previous run JSON to compare against"),
     save: bool = typer.Option(True, help="Write the run to eval/runs/"),
 ) -> None:
     """Score retrieval against the golden set. No LLM calls, so this is free."""
@@ -305,9 +300,9 @@ def eval(
         )
 
     embedder = _embedder(settings)
-    run = EvalRunner(
-        embedder, store, settings, _retriever(settings, store, embedder)
-    ).run(questions, top_k, dataset)
+    run = EvalRunner(embedder, store, settings, _retriever(settings, store, embedder)).run(
+        questions, top_k, dataset
+    )
     typer.echo("\n" + format_report(run))
 
     if baseline:
