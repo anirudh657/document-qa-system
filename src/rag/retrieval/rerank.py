@@ -148,14 +148,17 @@ class RerankingRetriever:
         top_k: int = 5,
         filters: dict[str, Any] | None = None,
     ) -> list[RetrievedChunk]:
-        pool = self.retriever.search(query, top_k=max(self.candidates, top_k), filters=filters)
+        pool: list[RetrievedChunk] = self.retriever.search(
+            query, top_k=max(self.candidates, top_k), filters=filters
+        )
         if not pool:
             return []
 
         self.last_error = ""
         try:
-            return self.reranker.rerank(query, pool, top_n=top_k)
+            reranked: list[RetrievedChunk] = self.reranker.rerank(query, pool, top_n=top_k)
         # A bad rerank must not lose the answer; fall back to the retriever's order.
         except Exception as error:
             self.last_error = f"{type(error).__name__}: {error}"
             return pool[:top_k]
+        return reranked
