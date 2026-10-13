@@ -77,7 +77,22 @@ class Settings(BaseSettings):
 
     rrf_k: int = 60
     enable_hyde: bool = False
-    enable_query_rewrite: bool = True
+
+    enable_query_rewrite: bool = False
+    """Expand the query with document terminology before retrieving.
+
+    Off by default: it costs an LLM call per query, so it must earn its place on the
+    golden set before being switched on. Targets the four failures whose query
+    describes an intent without ever using the term the document is indexed under.
+    """
+
+    query_rewrite_cache: str = "eval/cache/rewrites.json"
+    """Where expanded queries are cached.
+
+    Not an optimisation. A 32-question eval pass against a ~10 requests-per-minute free
+    tier would otherwise take minutes and risk rate-limiting partway through, which
+    would change the result for reasons unrelated to the change being measured.
+    """
 
     # API
     api_host: str = "0.0.0.0"
@@ -98,3 +113,4 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+

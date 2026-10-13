@@ -36,6 +36,11 @@ from rag.ingestion.chunking import FixedSizeChunker
 from rag.ingestion.embedding import build_embedder
 from rag.ingestion.pipeline import IngestionPipeline
 from rag.retrieval.hybrid import HybridRetriever, build_sparse
+from rag.retrieval.query_transform import (
+    QueryTransformer,
+    RewritingRetriever,
+    find_transformer,
+)
 from rag.retrieval.rerank import Reranker, RerankingRetriever
 from rag.retrieval.store import IndexFingerprintMismatchError, VectorStore
 
@@ -66,22 +71,58 @@ def _retriever(settings: Settings, store: VectorStore, embedder):  # type: ignor
     whatever is already in the vector store rather than kept as a second copy on disk
     that could drift out of sync with the vectors.
     """
-    retriever = None
+    retriever: object | None = None
     if settings.enable_hybrid:
         retriever = HybridRetriever(store, embedder, build_sparse(store), k=settings.rrf_k)
 
-    if not settings.enable_rerank:
-        return retriever
-
-    if retriever is None:
+    if retriever is None and (settings.enable_rerank or settings.enable_query_rewrite):
         retriever = HybridRetriever(
             store, embedder, sparse=None, candidates=settings.rerank_candidates
         )
 
-    return RerankingRetriever(
-        retriever,
-        Reranker(settings.reranker_model),
-        candidates=settings.rerank_candidates,
+    if settings.enable_query_rewrite and retriever is not None:
+        retriever = RewritingRetriever(
+            retriever,
+            QueryTransformer(
+                build_llm(settings.llm_provider, settings.llm_model, settings.llm_key()),
+                cache_path=Path(settings.query_rewrite_cache),
+            ),
+        )
+
+    if settings.enable_rerank:
+        retriever = RerankingRetriever(
+            retriever,
+            Reranker(settings.reranker_model),
+            candidates=settings.rerank_candidates,
+        )
+
+    return retriever
+
+
+def _report_rewriting(retriever: object) -> None:
+    """Say plainly whether query rewriting actually ran.
+
+    Without this a run where every rewrite failed is indistinguishable from one where
+    rewriting worked and changed nothing — the metrics are identical either way, and
+    the first conclusion is wrong in a way that is expensive to notice.
+    """
+    transformer = find_transformer(retriever)
+    if transformer is None:
+        return
+
+    attempted = transformer.calls + transformer.cache_hits + transformer.failures
+    if transformer.failures == 0:
+        typer.secho(
+            f"\nRewriting: {transformer.calls} call(s), {transformer.cache_hits} cached, 0 failed.",
+            dim=True,
+        )
+        return
+
+    typer.secho(
+        f"\nWARNING: query rewriting failed on {transformer.failures} of {attempted} "
+        f"queries and fell back to the original text. These metrics do not measure "
+        f"rewriting.\n  Last error: {transformer.last_error}",
+        fg="red",
     )
 
 
@@ -243,6 +284,8 @@ def status() -> None:
     if settings.enable_hybrid:
         stages.append("bm25")
     line = " + ".join(stages)
+    if settings.enable_query_rewrite:
+        line = f"rewrite -> {line}"
     if settings.enable_rerank:
         line += f" -> rerank ({settings.reranker_model}, {settings.rerank_candidates} candidates)"
     typer.echo(f"  retrieval   {line}")
@@ -300,10 +343,11 @@ def eval(
         )
 
     embedder = _embedder(settings)
-    run = EvalRunner(embedder, store, settings, _retriever(settings, store, embedder)).run(
-        questions, top_k, dataset
-    )
+    retriever = _retriever(settings, store, embedder)
+    run = EvalRunner(embedder, store, settings, retriever).run(questions, top_k, dataset)
     typer.echo("\n" + format_report(run))
+
+    _report_rewriting(retriever)
 
     if baseline:
         try:
@@ -322,6 +366,76 @@ def eval(
     if save:
         path = save_run(run, Path("eval/runs"))
         typer.secho(f"\nSaved to {path}", dim=True)
+
+
+@app.command("warm-rewrites")
+def warm_rewrites(
+    dataset: str = typer.Option("eval/datasets/golden.jsonl", help="Questions to expand"),
+) -> None:
+    """Pre-compute query expansions into the cache, then exit.
+
+    Separated from `eval` deliberately. An evaluation that makes live API calls is
+    slow, rate-limited and non-deterministic, and a measurement must not be any of
+    those. Warm once here; every later run scores from the cache instantly and
+    identically.
+
+    Safe to re-run: anything already cached is skipped, so a pass cut short by rate
+    limiting resumes where it stopped.
+    """
+    settings = get_settings()
+
+    try:
+        questions = load_dataset(Path(dataset))
+    except DatasetError as error:
+        _fail(str(error))
+
+    transformer = QueryTransformer(
+        build_llm(settings.llm_provider, settings.llm_model, settings.llm_key()),
+        cache_path=Path(settings.query_rewrite_cache),
+    )
+
+    typer.echo(
+        f"Expanding {len(questions)} question(s), pacing calls "
+        f"{transformer.min_interval:.0f}s apart to stay under the rate limit.\n"
+    )
+
+    def progress(index: int, total: int, query: str, status: str) -> None:
+        colour = {
+            "cached": "blue",
+            "fetched": "green",
+            "failed": "yellow",
+            "skipped": "bright_black",
+        }[status]
+        typer.secho(f"  [{index}/{total}] {status:<7} {query[:60]}", fg=colour)
+
+    summary = transformer.warm([q.question for q in questions], on_progress=progress)
+
+    held = summary["fetched"] + summary["cached"]
+    typer.echo(
+        f"\n{summary['fetched']} fetched, {summary['cached']} already cached, "
+        f"{summary['failed']} failed, {summary['skipped']} skipped."
+    )
+    typer.echo(f"Cache now holds {held} of {len(questions)} expansion(s).")
+
+    if transformer.quota_exhausted:
+        # Reported differently from an ordinary failure on purpose. "Re-run to retry"
+        # is useless advice against a daily quota, and following it is how an evening
+        # goes into a command that cannot succeed until the quota resets.
+        typer.secho(
+            "\nStopped early: the quota is exhausted, so the remaining queries were "
+            "skipped rather than spending requests that cannot succeed."
+            f"\n  {transformer.last_error}"
+            "\nRe-run after the reset — everything cached so far is kept.",
+            fg="red",
+        )
+    elif summary["failed"]:
+        typer.secho(
+            f"Re-run to retry the {summary['failed']} that failed — cached work is kept."
+            f"\n  Last error: {transformer.last_error}",
+            fg="yellow",
+        )
+    else:
+        typer.secho("Cache is complete. `rag eval` will now run without API calls.", fg="green")
 
 
 @app.command("eval-gate")

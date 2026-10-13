@@ -11,6 +11,9 @@ package to break on upgrade.
 
 from __future__ import annotations
 
+import asyncio
+import json
+import random
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
@@ -20,9 +23,65 @@ import httpx
 
 GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 
+TRANSIENT_STATUS = frozenset({500, 502, 503, 504})
+"""Statuses worth retrying.
+
+503 is not an edge case on a free tier — Gemini returns it whenever demand spikes, and
+it means "try again", not "this request was wrong". Treating it as fatal made a
+32-question eval pass silently fall back to its baseline: every call failed, every
+failure degraded gracefully, and the run reported numbers that measured nothing.
+"""
+
+RATE_LIMITED = 429
+"""Deliberately **not** retried, unlike the 5xx statuses above.
+
+429 does not mean "try again", it means "you are over quota" — and each retry spends
+another unit of the quota that is already gone. Measured on this project: a 34-query
+cache-warming pass retried every 429 four times, spent roughly 108 requests to cache
+two expansions, and ran the free tier's daily allowance down to nothing doing it. The
+retry was not merely useless here, it was the thing that exhausted the quota.
+
+So the two failure modes now get the two different responses they need. A 5xx is a
+spike: back off and retry. A 429 is a budget: stop, report which limit was hit and when
+it clears, and let the caller decide. Pacing calls apart (see `QueryTransformer`) is
+what prevents the per-minute limit; nothing prevents the per-day one but waiting.
+"""
+
+MAX_ATTEMPTS = 4
+BACKOFF_BASE_SECONDS = 1.0
+
 
 class LLMError(RuntimeError):
     """Raised when the provider rejects a request or returns something unusable."""
+
+
+class QuotaError(LLMError):
+    """A 429, carrying which quota was actually hit.
+
+    `scope` is the field that decides what to do next, and a bare status code hides it:
+    a per-minute limit clears in under a minute, a per-day limit does not clear until
+    the provider resets it. An evening spent re-running a command that cannot succeed
+    until tomorrow is the cost of not knowing which one you are looking at.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        scope: str = "unknown",
+        quota_id: str = "",
+        limit: str = "",
+        retry_after: float = 0.0,
+    ):
+        super().__init__(message)
+        self.scope = scope
+        self.quota_id = quota_id
+        self.limit = limit
+        self.retry_after = retry_after
+
+    @property
+    def exhausted(self) -> bool:
+        """True when waiting a moment cannot help, so a batch should stop, not grind on."""
+        return self.scope != "per-minute"
 
 
 @dataclass
@@ -104,12 +163,110 @@ class GeminiClient(LLMClient):
     def _headers(self) -> dict[str, str]:
         return {"x-goog-api-key": self.api_key, "Content-Type": "application/json"}
 
+    async def _post_with_retry(
+        self,
+        client: httpx.AsyncClient,
+        url: str,
+        payload: dict[str, Any],
+    ) -> httpx.Response:
+        """POST, retrying transient failures with exponential backoff and jitter.
+
+        Jitter matters because a batch of queries fails together and would otherwise
+        retry in lockstep, re-creating the same spike that caused the failure.
+
+        A 429 is not in `TRANSIENT_STATUS` and so returns on the first attempt — see
+        that constant for why retrying it is actively harmful.
+        """
+        last: httpx.Response | None = None
+        for attempt in range(MAX_ATTEMPTS):
+            response = await client.post(url, headers=self._headers, json=payload)
+            if response.status_code not in TRANSIENT_STATUS:
+                return response
+
+            last = response
+            if attempt == MAX_ATTEMPTS - 1:
+                break
+            delay = BACKOFF_BASE_SECONDS * (2**attempt)
+            await asyncio.sleep(delay + random.uniform(0, delay * 0.25))
+
+        assert last is not None
+        return last
+
     @staticmethod
-    def _raise_for_status(response: httpx.Response) -> None:
-        if response.status_code == 429:
+    def _quota_failure(response: httpx.Response) -> QuotaError:
+        """Turn a 429 body into a specific, actionable error.
+
+        Gemini already says exactly which limit was hit, in `error.details`: a
+        `QuotaFailure` names the quota and its value, and a `RetryInfo` gives a delay.
+        The previous version of this method discarded the body and reported the status
+        code alone, which is how a per-day exhaustion spent an evening being mistaken
+        for a per-minute one.
+        """
+        quota_id = limit = ""
+        retry_after = 0.0
+        try:
+            details = (response.json().get("error") or {}).get("details") or []
+        except ValueError:
+            details = []
+
+        for detail in details:
+            kind = str(detail.get("@type", ""))
+            if kind.endswith("QuotaFailure"):
+                for violation in detail.get("violations") or []:
+                    quota_id = str(violation.get("quotaId", "")) or quota_id
+                    limit = str(violation.get("quotaValue", "")) or limit
+            elif kind.endswith("RetryInfo"):
+                raw = str(detail.get("retryDelay", "")).rstrip("s")
+                if raw.replace(".", "", 1).isdigit():
+                    retry_after = float(raw)
+
+        flat = quota_id.lower()
+        if "perday" in flat:
+            scope = "per-day"
+        elif "perminute" in flat:
+            scope = "per-minute"
+        else:
+            scope = "unknown"
+
+        if scope == "per-day":
+            advice = (
+                "This is the DAILY quota, not the per-minute one. Waiting a few minutes "
+                "will not help — it resets at midnight US Pacific."
+            )
+        elif scope == "per-minute":
+            advice = "This is the per-minute quota. It clears within a minute."
+        else:
+            advice = (
+                "Gemini did not say which quota this was. Check the per-day request count "
+                "at https://aistudio.google.com before retrying."
+            )
+
+        parts = [f"Gemini returned HTTP {RATE_LIMITED} (quota exhausted).", advice]
+        if quota_id:
+            parts.append(f"Quota: {quota_id}" + (f" (limit {limit})." if limit else "."))
+        # Gemini attaches a RetryInfo to daily exhaustions too, where it is wrong: the
+        # suggested few seconds cannot clear a quota that resets tomorrow. Reporting it
+        # anyway would contradict the advice above in the same sentence, so it is kept
+        # on the exception for a caller that wants it and left out of the message.
+        if retry_after and scope == "per-minute":
+            parts.append(f"Retry in {retry_after:g}s.")
+        return QuotaError(
+            " ".join(parts),
+            scope=scope,
+            quota_id=quota_id,
+            limit=limit,
+            retry_after=retry_after,
+        )
+
+    @classmethod
+    def _raise_for_status(cls, response: httpx.Response) -> None:
+        if response.status_code == RATE_LIMITED:
+            raise cls._quota_failure(response)
+        if response.status_code in TRANSIENT_STATUS:
             raise LLMError(
-                "Gemini rate limit reached. The free tier allows roughly 10 requests "
-                "per minute — wait a moment and retry."
+                f"Gemini returned HTTP {response.status_code} after {MAX_ATTEMPTS} attempts. "
+                "Gemini returns 5xx when demand spikes; this usually clears within a few "
+                "minutes and is unrelated to your quota."
             )
         if response.status_code in (401, 403):
             raise LLMError(f"Gemini rejected the API key (HTTP {response.status_code}).")
@@ -143,9 +300,7 @@ class GeminiClient(LLMClient):
         url = f"{GEMINI_BASE}/{self.model}:generateContent"
 
         async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.post(
-                url, headers=self._headers, json=self._payload(system, user, config)
-            )
+            response = await self._post_with_retry(client, url, self._payload(system, user, config))
         self._raise_for_status(response)
         return self._parse(response.json())
 
@@ -153,8 +308,6 @@ class GeminiClient(LLMClient):
         self, system: str, user: str, config: GenerationConfig | None = None
     ) -> AsyncIterator[str]:
         """Yield text as it is produced, so the caller can show partial answers."""
-        import json
-
         config = config or GenerationConfig()
         url = f"{GEMINI_BASE}/{self.model}:streamGenerateContent?alt=sse"
 
