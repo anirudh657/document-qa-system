@@ -109,9 +109,13 @@ class Generator:
                 continue
             seen.add(chunk.id)
             citations.append(
+                # `source_path` is the document, not a display string. It held
+                # `contextual_header` — "Report > Page 5" — because it was written
+                # before chunks carried a `source`, and a reader then saw the page
+                # twice: once inside the name and once in the page field.
                 Citation(
                     chunk_id=chunk.id,
-                    source_path=chunk.contextual_header or chunk.document_id,
+                    source_path=chunk.source or chunk.document_id,
                     section=chunk.section_path[0] if chunk.section_path else None,
                     page_number=chunk.page_number,
                     quote=chunk.text[:QUOTE_CHARS].strip(),

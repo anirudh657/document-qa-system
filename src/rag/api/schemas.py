@@ -45,6 +45,13 @@ class SearchResponse(BaseModel):
 
 
 class IngestRequest(BaseModel):
+    """Ingest a path the SERVER can already see.
+
+    Not what a browser upload needs — the file does not exist server-side yet. Upload
+    goes through `POST /v1/documents` as multipart instead, and this stays for the CLI
+    and for re-indexing a directory already on disk.
+    """
+
     path: str
     recursive: bool = True
 
@@ -52,6 +59,36 @@ class IngestRequest(BaseModel):
 class IngestResponse(BaseModel):
     job_id: str
     documents_queued: int
+
+
+class DocumentSummary(BaseModel):
+    """One indexed document, as the index itself describes it.
+
+    Derived from the chunks rather than from a separate table, so it cannot drift out
+    of step with what is actually searchable. If a document is listed here, questions
+    about it can be answered.
+    """
+
+    source: str
+    chunks: int
+    pages: int
+    """Distinct pages covered, counting the full span of every chunk."""
+
+
+class DocumentList(BaseModel):
+    documents: list[DocumentSummary]
+    total_chunks: int
+
+
+class UploadResponse(BaseModel):
+    source: str
+    chunks: int
+    pages: int
+    replaced: bool
+    """True when a document of this name was already indexed and has been rebuilt."""
+
+    warning: str = ""
+    """Set when the upload succeeded but something about it needs saying."""
 
 
 class HealthResponse(BaseModel):
