@@ -47,7 +47,7 @@ Two configurations are compared on the same questions, so the right test is **Mc
 exact test** on the questions where they disagree. Only discordant pairs carry information:
 
 | Fixed | Broken | p | Verdict |
-| --- | --- | --- | --- |
+|---|---|---|---|
 | 3 | 0 | 0.250 | indistinguishable from chance |
 | 4 | 0 | 0.125 | indistinguishable from chance |
 | 5 | 0 | 0.062 | indistinguishable from chance |
@@ -65,7 +65,7 @@ Required sample size to detect a 10-point real improvement: ~120 questions.
 ## Retrieval metrics
 
 | Metric | What it answers |
-| --- | --- |
+|---|---|
 | **Hit rate @k** | Did any correct page appear in the top k at all? |
 | **MRR** | How high up was the first correct page? |
 | **NDCG@10** | Is the whole ordering good, not just the first hit? |
@@ -88,7 +88,7 @@ which is how much of the context window was wasted.
 ## Generation metrics
 
 | Metric | What it answers |
-| --- | --- |
+|---|---|
 | **Faithfulness** | Is every claim supported by the retrieved context? |
 | **Answer relevance** | Does it actually answer the question asked? |
 | **Correct refusal rate** | Does it decline when the corpus has no answer? |
@@ -138,7 +138,7 @@ a change which improves one metric while quietly destroying another cannot ship 
 `BAAI/bge-base-en-v1.5`, chunk_size 160, overlap 64, top_k 5.
 
 | Run | Date | Hit@5 | MRR | NDCG@10 | Recall@5 | chunk_prec@5 | Failures |
-| --- | --- | --- | --- | --- | --- | --- | --- |
+|---|---|---|---|---|---|---|---|
 | page-span attribution | 2026-10-31 | **0.906** | **0.677** | **0.714** | 0.880 | 0.406 | 3 |
 | single-page attribution | 2026-09-28 | 0.656 | 0.579 | 0.583 | 0.630 | — | 11 |
 
@@ -188,7 +188,7 @@ All three are vocabulary gaps — the query states an intent without using the d
 term. This is exactly what query rewriting targets.
 
 | ID | Question | Expected | Missing term |
-| --- | --- | --- | --- |
+|---|---|---|---|
 | `q-019` | How do I select every column from a table? | p14 | `SELECT *` |
 | `q-021` | How do I find rows where a column has no value at all? | p16 | `NULL` |
 | `q-026` | How do I count only the rows matching a condition? | p31 | `COUNT` |
@@ -211,7 +211,7 @@ Runs recorded after the fix carry `page_spans: true` in their config snapshot.
 34-question golden set, chunk_size 200, top_k 5.
 
 | Run | Hit@5 | MRR | NDCG@10 | Precision@5 |
-| --- | --- | --- | --- | --- |
+|---|---|---|---|---|
 | dense only | 0.656 | 0.600 | 0.571 | 0.218 |
 | + hybrid BM25 + RRF | 0.656 | 0.600 | 0.571 | 0.218 |
 | + cross-encoder rerank | 0.625 | 0.467 | 0.473 | 0.194 |
@@ -230,7 +230,7 @@ need re-measuring against the corrected baseline before any conclusion stands.
 34-question golden set, dense retrieval only, overlap 64, top_k 5.
 
 | chunk_size | Hit@5 | MRR | NDCG@10 | Precision@5 | Recall@5 |
-| --- | --- | --- | --- | --- | --- |
+|---|---|---|---|---|---|
 | 128 | 0.625 | 0.594 | 0.572 | 0.278 | 0.583 |
 | 160 | 0.656 | 0.579 | 0.583 | 0.258 | 0.630 |
 | 200 | 0.656 | 0.600 | 0.571 | 0.218 | 0.604 |
@@ -261,7 +261,7 @@ size.** 160 remains in use as the incumbent, not as a measured optimum.
 ## Outstanding
 
 | # | Work | Why |
-| --- | --- | --- |
+|---|---|---|
 | 1 | Re-run at chunk 160 with `enable_hybrid=False` | Attribute the +0.250 to the fix alone |
 | 2 | Pin `LLM_MODEL=gemini-3.5-flash-lite` | 2.5-flash-lite was retired mid-run |
 | 3 | Grow golden set toward 120 questions | Nothing smaller than 6 clean fixes is detectable |
