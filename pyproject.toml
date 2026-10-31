@@ -8,6 +8,12 @@ authors = [{ name = "anirudh657" }]
 
 dependencies = [
   "fastapi>=0.115",
+  # FastAPI needs this for multipart bodies, and it is not pulled in by `fastapi`
+  # itself. Without it, `POST /v1/documents` fails at import time rather than at
+  # request time: the route's UploadFile parameter is inspected when the module loads,
+  # so the whole app refuses to start. It was installed by hand during development and
+  # the manifest was not updated, which CI caught on a clean environment.
+  "python-multipart>=0.0.9",
   "uvicorn[standard]>=0.32",
   "pydantic>=2.9",
   "pydantic-settings>=2.6",
