@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from rag.config import Settings
-from rag.evaluation.datasets import GoldenQuestion, retrieved_keys
+from rag.evaluation.datasets import GoldenQuestion, retrieved_chunk_pages, retrieved_keys
 from rag.evaluation.metrics import aggregate, hit_rate_at_k, reciprocal_rank
 from rag.ingestion.embedding import Embedder
 from rag.retrieval.store import VectorStore
@@ -44,6 +44,13 @@ class QuestionResult:
     rr: float
     tags: list[str] = field(default_factory=list)
     note: str = ""
+    chunk_pages: list[list[str]] = field(default_factory=list)
+    """Page keys covered by each retrieved chunk, in rank order.
+
+    Stored so chunk-level precision can be recomputed from a saved run, and so a
+    failure can be read without re-running retrieval. Defaults to empty, which is what
+    runs recorded before page spans existed carry.
+    """
 
     @property
     def failed(self) -> bool:
@@ -53,7 +60,7 @@ class QuestionResult:
 @dataclass
 class EvalRun:
     started_at: str
-    config: dict[str, str | int]
+    config: dict[str, str | int | bool]
     metrics: dict[str, float]
     results: list[QuestionResult]
     dataset: str = ""
@@ -68,11 +75,27 @@ class EvalRun:
         return json.dumps(payload, indent=2)
 
 
-def config_snapshot(settings: Settings, top_k: int) -> dict[str, str | int]:
+def config_snapshot(settings: Settings, top_k: int) -> dict[str, str | int | bool]:
     """The settings that materially change a score.
 
     Anything that affects retrieval belongs here. Anything that does not is noise in a
     diff between two runs.
+
+    The three retrieval stages were missing from this, and the omission was not
+    cosmetic: the results table reported a baseline, a hybrid run and a reranking run,
+    and the files behind those rows recorded chunking and embedding but not which
+    stages were switched on. Three configurations produced three files that described
+    themselves identically.
+
+    `page_spans` marks runs scored after chunks began carrying a page range. Runs
+    without it were scored when a chunk was attributed to its first page only, which
+    counted six answerable questions as retrieval failures — so a number from before
+    and a number from after are not comparable, and the flag is what says so.
+
+    `rewrite_model` is named only when rewriting is enabled, because that is the only
+    path by which a language model reaches a retrieval score. It has to be recorded
+    somewhere: the expansions a model writes are the experiment, and two runs of the
+    same code against the same index will disagree if the model underneath changed.
     """
     return {
         "embedding_model": settings.embedding_model,
@@ -80,6 +103,11 @@ def config_snapshot(settings: Settings, top_k: int) -> dict[str, str | int]:
         "chunk_overlap": settings.chunk_overlap,
         "top_k": top_k,
         "index_fingerprint": settings.index_fingerprint(),
+        "hybrid": settings.enable_hybrid,
+        "rerank": settings.enable_rerank,
+        "query_rewrite": settings.enable_query_rewrite,
+        "rewrite_model": settings.llm_model if settings.enable_query_rewrite else "",
+        "page_spans": True,
     }
 
 
@@ -127,15 +155,21 @@ class EvalRunner:
         retrieved = retrieved_keys(hits)
         expected = question.relevant_keys()
 
+        # k=None, not k=top_k. Retrieval already returned top_k chunks, and one chunk
+        # can cover several pages, so `retrieved` may hold more than top_k keys.
+        # Truncating it to top_k here would discard the pages covered by the
+        # lowest-ranked chunks and score them as misses — the same class of bug as
+        # attributing a chunk to its first page only.
         return QuestionResult(
             id=question.id,
             question=question.question,
             expected=expected,
             retrieved=retrieved,
-            hit=hit_rate_at_k(retrieved, expected, k=top_k) if expected else 0.0,
+            hit=hit_rate_at_k(retrieved, expected, k=None) if expected else 0.0,
             rr=reciprocal_rank(retrieved, expected) if expected else 0.0,
             tags=question.tags,
             note=question.note,
+            chunk_pages=retrieved_chunk_pages(hits),
         )
 
     def run(
@@ -157,6 +191,8 @@ class EvalRunner:
             [r.retrieved for r in results],
             [r.expected for r in results],
             k=top_k,
+            truncate=False,
+            chunk_pages_per_query=[r.chunk_pages for r in results],
         )
 
         return EvalRun(

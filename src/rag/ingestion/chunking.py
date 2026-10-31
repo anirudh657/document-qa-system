@@ -138,7 +138,7 @@ class FixedSizeChunker(Chunker):
         chunks: list[Chunk] = []
         for index, group in enumerate(groups):
             text = " ".join(unit.text for unit in group)
-            page, path = self._locate(doc, group[0].start)
+            page, page_end, path = self._locate_span(doc, group)
             chunks.append(
                 Chunk(
                     id=chunk_id(document_id, index),
@@ -148,10 +148,40 @@ class FixedSizeChunker(Chunker):
                     contextual_header=self._header(doc, path),
                     section_path=path,
                     page_number=page,
+                    page_end=page_end,
                     token_count=self.count_tokens(text),
                 )
             )
         return chunks
+
+    def _locate_span(
+        self, doc: LoadedDocument, group: list[Unit]
+    ) -> tuple[int | None, int | None, list[str]]:
+        """The first and last page a chunk's text touches, plus its heading path.
+
+        Only the first page used to be recorded. That is right for a citation — a
+        reader wants the page the passage begins on — and wrong for evaluation, which
+        asks whether a page was retrieved at all. A chunk spanning pages 14 and 15
+        reported 14, so page 15 was retrievable only if some other chunk happened to
+        *start* inside it. On a corpus whose pages hold less text than one chunk, none
+        does, and the page disappears from the index at page granularity.
+
+        The last character of the final unit is what fixes the end page: the offset one
+        past the text would fall into the next page whenever a chunk ends exactly on a
+        boundary, widening every span by a page it does not contain.
+        """
+        start = group[0].start
+        last = group[-1]
+        end = max(start, last.start + len(last.text) - 1)
+
+        page, path = self._locate(doc, start)
+        page_end, _ = self._locate(doc, end)
+
+        # None rather than a repeat of page_number, so a chunk that sits on one page
+        # serialises exactly as it did before this change.
+        if page_end is None or page is None or page_end <= page:
+            page_end = None
+        return page, page_end, path
 
     def _pack(self, units: list[Unit]) -> list[list[Unit]]:
         """Greedily fill chunks to the token budget, then step back for overlap."""

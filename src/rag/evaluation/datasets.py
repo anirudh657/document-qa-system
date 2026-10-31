@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 from collections import Counter
+from collections.abc import Sequence
 from pathlib import Path
 
 from pydantic import BaseModel, Field, model_validator
@@ -80,13 +81,40 @@ def retrieved_keys(hits: list[RetrievedChunk]) -> list[str]:
     Two chunks from the same page are one hit, not two — counting them separately would
     inflate precision for no reason, and smaller chunk sizes would score better purely
     by returning more pieces of the same page.
+
+    Every page a chunk covers is emitted, not only the page it starts on. A chunk whose
+    text runs from page 14 into page 15 did retrieve page 15, and crediting it with 14
+    alone marked six golden questions as retrieval failures while their text sat in the
+    index. See `Chunk.page_end`.
+
+    One consequence for callers: a chunk can now contribute several keys, so this list
+    may be longer than the number of hits. Truncating it to k would then silently
+    discard the pages covered by the lowest-ranked chunks, which is why the runner
+    scores the whole list and limits retrieval to k chunks instead.
     """
     keys: list[str] = []
     for hit in hits:
-        key = page_key(hit.chunk.source, hit.chunk.page_number)
-        if key not in keys:
-            keys.append(key)
+        covered: Sequence[int | None] = hit.chunk.pages or [None]
+        for page in covered:
+            key = page_key(hit.chunk.source, page)
+            if key not in keys:
+                keys.append(key)
     return keys
+
+
+def retrieved_chunk_pages(hits: list[RetrievedChunk]) -> list[list[str]]:
+    """The page keys each retrieved chunk covers, one inner list per chunk, in rank order.
+
+    Kept separate from `retrieved_keys` because precision is a question about chunks,
+    not pages: what fills the context window is passages, so "how many of the k
+    passages were relevant" is the thing worth knowing. Flattening to pages first makes
+    that unanswerable.
+    """
+    rows: list[list[str]] = []
+    for hit in hits:
+        covered: Sequence[int | None] = hit.chunk.pages or [None]
+        rows.append([page_key(hit.chunk.source, page) for page in covered])
+    return rows
 
 
 class DatasetError(ValueError):

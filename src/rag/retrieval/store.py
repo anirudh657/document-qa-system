@@ -164,6 +164,7 @@ class VectorStore:
                     "contextual_header": chunk.contextual_header,
                     "section_path": chunk.section_path,
                     "page_number": chunk.page_number,
+                    "page_end": chunk.page_end,
                     "parent_id": chunk.parent_id,
                     "token_count": chunk.token_count,
                 },
@@ -214,6 +215,7 @@ class VectorStore:
                         contextual_header=payload.get("contextual_header", ""),
                         section_path=payload.get("section_path") or [],
                         page_number=payload.get("page_number"),
+                        page_end=payload.get("page_end"),
                         parent_id=payload.get("parent_id"),
                         token_count=payload.get("token_count", 0),
                     ),
@@ -256,6 +258,7 @@ class VectorStore:
                         contextual_header=payload.get("contextual_header", ""),
                         section_path=payload.get("section_path") or [],
                         page_number=payload.get("page_number"),
+                        page_end=payload.get("page_end"),
                         parent_id=payload.get("parent_id"),
                         token_count=payload.get("token_count", 0),
                     )

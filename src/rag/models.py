@@ -29,8 +29,34 @@ class Chunk(BaseModel):
     contextual_header: str = ""
     section_path: list[str] = Field(default_factory=list)
     page_number: int | None = None
+    page_end: int | None = None
+    """Last page this chunk's text reaches. None means it stays on `page_number`.
+
+    A chunk used to carry only the page it *started* in, which is correct for a citation
+    and wrong for evaluation. This corpus averages ~132 tokens of text per page against
+    a chunk_size of 160, so a chunk routinely spans two or three pages — and a page
+    shorter than the chunk stride gets no chunk starting inside it at all. Six golden
+    questions were scored as retrieval failures on that basis while their text sat in
+    the index under the previous page's label.
+
+    Recording the span fixes the label rather than loosening the metric: if a chunk's
+    text contains page 15, then retrieving that chunk did surface page 15.
+    """
+
     parent_id: str | None = None
     token_count: int = 0
+
+    @property
+    def pages(self) -> list[int]:
+        """Every page this chunk's text covers, in order.
+
+        Empty when the chunk has no page at all (a markdown or text source), which
+        callers treat the same way they treated `page_number is None` before.
+        """
+        if self.page_number is None:
+            return []
+        last = self.page_number if self.page_end is None else max(self.page_end, self.page_number)
+        return list(range(self.page_number, last + 1))
 
     def embedding_text(self) -> str:
         return f"{self.contextual_header}\n\n{self.text}".strip()

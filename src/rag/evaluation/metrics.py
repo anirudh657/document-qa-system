@@ -31,7 +31,9 @@ def _truncate(retrieved: Sequence[str], k: int | None) -> list[str]:
     return list(retrieved[:k])
 
 
-def hit_rate_at_k(retrieved_ids: Sequence[str], expected_ids: Sequence[str], k: int = 5) -> float:
+def hit_rate_at_k(
+    retrieved_ids: Sequence[str], expected_ids: Sequence[str], k: int | None = 5
+) -> float:
     """Did any expected item appear in the top k? 1.0 or 0.0 for a single query.
 
     The bluntest and most important retrieval metric. Averaged over a dataset it reads
@@ -79,7 +81,9 @@ def dcg(relevances: Sequence[float]) -> float:
     return sum(relevance / math.log2(rank + 1) for rank, relevance in enumerate(relevances, 1))
 
 
-def ndcg_at_k(retrieved_ids: Sequence[str], expected_ids: Sequence[str], k: int = 10) -> float:
+def ndcg_at_k(
+    retrieved_ids: Sequence[str], expected_ids: Sequence[str], k: int | None = 10
+) -> float:
     """NDCG@k — judges the whole ordering, not just the first hit.
 
     Normalised against the best possible ordering, so 1.0 means every expected item was
@@ -93,15 +97,31 @@ def ndcg_at_k(retrieved_ids: Sequence[str], expected_ids: Sequence[str], k: int 
     top = _truncate(retrieved_ids, k)
 
     actual = dcg([1.0 if item in expected else 0.0 for item in top])
-    ideal = dcg([1.0] * min(len(expected), k))
+    # The ideal ordering is bounded by how many positions are being judged. With k=None
+    # that is the length of the list itself, not None — scoring the whole list has to
+    # normalise against the whole list.
+    positions = len(top) if k is None else k
+    ideal = dcg([1.0] * min(len(expected), positions))
     return actual / ideal if ideal else 0.0
 
 
-def precision_at_k(retrieved_ids: Sequence[str], expected_ids: Sequence[str], k: int = 5) -> float:
-    """Of the k passages retrieved, what fraction were relevant?
+def precision_at_k(
+    retrieved_ids: Sequence[str], expected_ids: Sequence[str], k: int | None = 5
+) -> float:
+    """Of the pages retrieved, what fraction were relevant?
 
-    Low precision wastes context window and invites the model to be distracted by
-    passages that merely look related.
+    Kept for comparison with older runs, but `chunk_precision_at_k` is the metric to
+    read. Dividing by the number of DISTINCT retrieved pages makes this track chunk
+    size rather than retrieval quality: smaller chunks land several pieces on the same
+    page, the page list collapses, the divisor shrinks and the score rises without
+    anything having been retrieved better. Measured on this project, precision@5 ran
+    0.278 / 0.258 / 0.218 / 0.193 for chunk sizes 128 / 160 / 200 / 256 — monotonic in
+    chunk size, which is the artifact and not a finding.
+
+    `retrieved_keys` deduplicates pages for exactly this reason, with the comment that
+    otherwise "smaller chunk sizes would score better purely by returning more pieces
+    of the same page". The deduplication fixed the numerator; this divisor put the same
+    bias straight back.
     """
     top = _truncate(retrieved_ids, k)
     if not top:
@@ -109,7 +129,29 @@ def precision_at_k(retrieved_ids: Sequence[str], expected_ids: Sequence[str], k:
     return len([item for item in top if item in set(expected_ids)]) / len(top)
 
 
-def recall_at_k(retrieved_ids: Sequence[str], expected_ids: Sequence[str], k: int = 5) -> float:
+def chunk_precision_at_k(
+    chunk_pages: Sequence[Sequence[str]], expected_ids: Sequence[str], k: int | None = 5
+) -> float:
+    """Of the k retrieved chunks, what fraction covered an expected page?
+
+    Precision is a question about passages, because passages are what fill the context
+    window and distract the model. Measuring it over chunks makes the divisor the
+    number of chunks actually sent — a fixed k — so the score no longer moves when
+    chunk size changes the number of distinct pages those chunks happen to cover.
+
+    Takes one page-key list per chunk, from `retrieved_chunk_pages`.
+    """
+    top = list(chunk_pages) if k is None else list(chunk_pages[:k])
+    if not top:
+        return 0.0
+    expected = set(expected_ids)
+    relevant = sum(1 for pages in top if expected & set(pages))
+    return relevant / len(top)
+
+
+def recall_at_k(
+    retrieved_ids: Sequence[str], expected_ids: Sequence[str], k: int | None = 5
+) -> float:
     """Of the passages that should have been found, what fraction were?"""
     if not expected_ids:
         return 0.0
@@ -135,8 +177,22 @@ def aggregate(
     retrieved_per_query: Sequence[Sequence[str]],
     expected_per_query: Sequence[Sequence[str]],
     k: int = 5,
+    truncate: bool = True,
+    chunk_pages_per_query: Sequence[Sequence[Sequence[str]]] | None = None,
 ) -> dict[str, float]:
-    """Every retrieval metric over a whole dataset, for the results table."""
+    """Every retrieval metric over a whole dataset, for the results table.
+
+    `truncate` controls whether the page lists are cut to k before scoring, and the
+    caller has to choose deliberately now that one chunk can cover several pages.
+    Retrieval already returns k chunks; cutting the resulting page list to k as well
+    would throw away the pages covered by the lowest-ranked chunks and report them as
+    misses. The runner therefore passes `truncate=False`, and `k` only names the
+    metrics. It defaults to True so existing callers and runs are unaffected.
+
+    `chunk_pages_per_query`, when given, adds `chunk_precision@k` — precision measured
+    over chunks rather than pages, which is the one worth comparing between chunk
+    sizes. See `chunk_precision_at_k`.
+    """
     if len(retrieved_per_query) != len(expected_per_query):
         raise ValueError(
             f"{len(retrieved_per_query)} result lists but {len(expected_per_query)} expectations"
@@ -146,10 +202,23 @@ def aggregate(
 
     pairs = list(zip(retrieved_per_query, expected_per_query, strict=True))
     n = len(pairs)
-    return {
-        f"hit_rate@{k}": sum(hit_rate_at_k(r, e, k) for r, e in pairs) / n,
+    cap = k if truncate else None
+    metrics = {
+        f"hit_rate@{k}": sum(hit_rate_at_k(r, e, cap) for r, e in pairs) / n,
         "mrr": mean_reciprocal_rank(retrieved_per_query, expected_per_query),
-        "ndcg@10": sum(ndcg_at_k(r, e, 10) for r, e in pairs) / n,
-        f"precision@{k}": sum(precision_at_k(r, e, k) for r, e in pairs) / n,
-        f"recall@{k}": sum(recall_at_k(r, e, k) for r, e in pairs) / n,
+        "ndcg@10": sum(ndcg_at_k(r, e, 10 if truncate else None) for r, e in pairs) / n,
+        f"precision@{k}": sum(precision_at_k(r, e, cap) for r, e in pairs) / n,
+        f"recall@{k}": sum(recall_at_k(r, e, cap) for r, e in pairs) / n,
     }
+
+    if chunk_pages_per_query is not None:
+        if len(chunk_pages_per_query) != n:
+            raise ValueError(f"{len(chunk_pages_per_query)} chunk-page lists but {n} queries")
+        metrics[f"chunk_precision@{k}"] = (
+            sum(
+                chunk_precision_at_k(chunks, expected, k)
+                for chunks, expected in zip(chunk_pages_per_query, expected_per_query, strict=True)
+            )
+            / n
+        )
+    return metrics
