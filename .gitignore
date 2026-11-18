@@ -26,7 +26,11 @@ models/
 
 # Eval outputs
 eval/results/
-eval/runs/
+
+# eval/runs/ is deliberately NOT ignored. The scored runs are the evidence for every
+# claim this project makes about retrieval quality, the Evaluation screen reads them
+# straight off disk, and they are a few KB of JSON each. Ignoring them meant a fresh
+# clone showed an empty Evaluation page and the measurement history lived on one laptop.
 
 # Notebooks
 .ipynb_checkpoints/

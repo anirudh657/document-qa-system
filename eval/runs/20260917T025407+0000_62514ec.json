@@ -1,0 +1,142 @@
+{
+  "started_at": "2026-09-17T02:54:07+00:00",
+  "config": {
+    "embedding_model": "BAAI/bge-base-en-v1.5",
+    "chunk_size": 200,
+    "chunk_overlap": 64,
+    "top_k": 5,
+    "index_fingerprint": "BAAI/bge-base-en-v1.5:200:64"
+  },
+  "metrics": {
+    "hit_rate@5": 0.8333333333333334,
+    "mrr": 0.8333333333333334,
+    "ndcg@10": 0.8333333333333334,
+    "precision@5": 0.20555555555555557,
+    "recall@5": 0.8333333333333334
+  },
+  "results": [
+    {
+      "id": "q-001",
+      "question": "How do I create a database in MySQL?",
+      "expected": [
+        "MySQL Handbook#p5"
+      ],
+      "retrieved": [
+        "MySQL Handbook#p5",
+        "MySQL Handbook#p3",
+        "MySQL Handbook#p2"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "mysql",
+        "rare-term"
+      ],
+      "note": "Dense retrieval currently misses this: the term appears once in 47k chars and loses to topically similar 'Create a User' pages."
+    },
+    {
+      "id": "q-002",
+      "question": "How do I create an index in MySQL?",
+      "expected": [
+        "MySQL Handbook#p64"
+      ],
+      "retrieved": [
+        "MySQL Handbook#p64",
+        "MySQL Handbook#p5",
+        "MySQL Handbook#p43",
+        "MySQL Handbook#p3"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "mysql"
+      ],
+      "note": "Currently passes at 0.755."
+    },
+    {
+      "id": "q-003",
+      "question": "What are De Morgan's laws?",
+      "expected": [
+        "Anirudh_Arora_Practical_File#p7"
+      ],
+      "retrieved": [
+        "Anirudh_Arora_Practical_File#p7",
+        "Anirudh_Arora_Practical_File#p1",
+        "Anirudh_Arora_Practical_File#p5",
+        "MySQL Handbook#p68",
+        "MySQL Handbook#p69"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "discrete-maths"
+      ],
+      "note": "Currently passes at 0.687."
+    },
+    {
+      "id": "q-006",
+      "question": "How do I check if a string is a palindrome in Java?",
+      "expected": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p5"
+      ],
+      "retrieved": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p5",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p4",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p9",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p7",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p8"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "java",
+        "strings"
+      ],
+      "note": ""
+    },
+    {
+      "id": "q-007",
+      "question": "How do I find the maximum and minimum values in an array in Java?",
+      "expected": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p3"
+      ],
+      "retrieved": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p3",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p9",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p7",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p8"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "java",
+        "arrays"
+      ],
+      "note": ""
+    },
+    {
+      "id": "q-008",
+      "question": "What is Experiment 1 in the OOP lab file?",
+      "expected": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p2"
+      ],
+      "retrieved": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p1",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p14",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p10",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p11",
+        "Anirudh_Arora_Practical_File#p1"
+      ],
+      "hit": 0.0,
+      "rr": 0.0,
+      "tags": [
+        "java",
+        "navigational",
+        "known-failure"
+      ],
+      "note": "Dense retrieval fails on navigational queries: 'experiment 1' carries no semantic content, so results fall back on page-boundary boilerplate. Should be fixed by BM25 in Phase 2."
+    }
+  ],
+  "dataset": "eval/datasets/golden.jsonl",
+  "git_sha": "62514ec"
+}

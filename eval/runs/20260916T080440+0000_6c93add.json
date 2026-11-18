@@ -1,0 +1,82 @@
+{
+  "started_at": "2026-09-16T08:04:40+00:00",
+  "config": {
+    "embedding_model": "BAAI/bge-base-en-v1.5",
+    "chunk_size": 512,
+    "chunk_overlap": 64,
+    "top_k": 5,
+    "index_fingerprint": "BAAI/bge-base-en-v1.5:512:64"
+  },
+  "metrics": {
+    "hit_rate@5": 0.3333333333333333,
+    "mrr": 0.3333333333333333,
+    "ndcg@10": 0.3333333333333333,
+    "precision@5": 0.06666666666666667,
+    "recall@5": 0.3333333333333333
+  },
+  "results": [
+    {
+      "id": "q-001",
+      "question": "How do I create a database in MySQL?",
+      "expected": [
+        "MySQL Handbook#p5"
+      ],
+      "retrieved": [
+        "MySQL Handbook#p3",
+        "MySQL Handbook#p2",
+        "MySQL Handbook#p43",
+        "MySQL Handbook#p48",
+        "MySQL Handbook#p6"
+      ],
+      "hit": 0.0,
+      "rr": 0.0,
+      "tags": [
+        "mysql",
+        "rare-term"
+      ],
+      "note": "Dense retrieval currently misses this: the term appears once in 47k chars and loses to topically similar 'Create a User' pages."
+    },
+    {
+      "id": "q-002",
+      "question": "How do I create an index in MySQL?",
+      "expected": [
+        "MySQL Handbook#p64"
+      ],
+      "retrieved": [
+        "MySQL Handbook#p64",
+        "MySQL Handbook#p3",
+        "MySQL Handbook#p43",
+        "MySQL Handbook#p57",
+        "MySQL Handbook#p29"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "mysql"
+      ],
+      "note": "Currently passes at 0.755."
+    },
+    {
+      "id": "q-003",
+      "question": "What are De Morgan's laws?",
+      "expected": [
+        "Anirudh_Arora_Practical_File#p7"
+      ],
+      "retrieved": [
+        "Anirudh_Arora_Practical_File#p1",
+        "Anirudh_Arora_Practical_File#p5",
+        "MySQL Handbook#p67",
+        "MySQL Handbook#p74",
+        "MySQL Handbook#p45"
+      ],
+      "hit": 0.0,
+      "rr": 0.0,
+      "tags": [
+        "discrete-maths"
+      ],
+      "note": "Currently passes at 0.687."
+    }
+  ],
+  "dataset": "eval/datasets/golden.jsonl",
+  "git_sha": "6c93add"
+}

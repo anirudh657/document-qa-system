@@ -1,0 +1,271 @@
+{
+  "started_at": "2026-09-24T19:55:17+00:00",
+  "config": {
+    "embedding_model": "BAAI/bge-base-en-v1.5",
+    "chunk_size": 200,
+    "chunk_overlap": 64,
+    "top_k": 5,
+    "index_fingerprint": "BAAI/bge-base-en-v1.5:200:64"
+  },
+  "metrics": {
+    "hit_rate@5": 0.9166666666666666,
+    "mrr": 0.875,
+    "ndcg@10": 0.8663575325466732,
+    "precision@5": 0.3416666666666666,
+    "recall@5": 0.8888888888888888
+  },
+  "results": [
+    {
+      "id": "q-001",
+      "question": "How do I create a database in MySQL?",
+      "expected": [
+        "MySQL Handbook#p5"
+      ],
+      "retrieved": [
+        "MySQL Handbook#p5",
+        "MySQL Handbook#p2",
+        "MySQL Handbook#p3"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "mysql",
+        "rare-term"
+      ],
+      "note": "Dense retrieval currently misses this: the term appears once in 47k chars and loses to topically similar 'Create a User' pages."
+    },
+    {
+      "id": "q-002",
+      "question": "How do I create an index in MySQL?",
+      "expected": [
+        "MySQL Handbook#p64"
+      ],
+      "retrieved": [
+        "MySQL Handbook#p64",
+        "MySQL Handbook#p66",
+        "MySQL Handbook#p65",
+        "MySQL Handbook#p5"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "mysql"
+      ],
+      "note": "Currently passes at 0.755."
+    },
+    {
+      "id": "q-003",
+      "question": "What are De Morgan's laws?",
+      "expected": [
+        "Anirudh_Arora_Practical_File#p7"
+      ],
+      "retrieved": [
+        "Anirudh_Arora_Practical_File#p1",
+        "Anirudh_Arora_Practical_File#p7",
+        "Anirudh_Arora_Practical_File#p5",
+        "MySQL Handbook#p68",
+        "MySQL Handbook#p67"
+      ],
+      "hit": 1.0,
+      "rr": 0.5,
+      "tags": [
+        "discrete-maths"
+      ],
+      "note": "Currently passes at 0.687."
+    },
+    {
+      "id": "q-006",
+      "question": "How do I check if a string is a palindrome in Java?",
+      "expected": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p5"
+      ],
+      "retrieved": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p5",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p4",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p7",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p9",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p3"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "java",
+        "strings"
+      ],
+      "note": ""
+    },
+    {
+      "id": "q-007",
+      "question": "How do I find the maximum and minimum values in an array in Java?",
+      "expected": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p3"
+      ],
+      "retrieved": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p3",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p9",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p1",
+        "MySQL Handbook#p31"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "java",
+        "arrays"
+      ],
+      "note": ""
+    },
+    {
+      "id": "q-008",
+      "question": "What is Experiment 1 in the OOP lab file?",
+      "expected": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p2"
+      ],
+      "retrieved": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p1",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p10",
+        "Anirudh_Arora_Practical_File#p1",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p14",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p4"
+      ],
+      "hit": 0.0,
+      "rr": 0.0,
+      "tags": [
+        "java",
+        "navigational",
+        "known-failure"
+      ],
+      "note": "Dense retrieval fails on navigational queries: 'experiment 1' carries no semantic content, so results fall back on page-boundary boilerplate. Should be fixed by BM25 in Phase 2."
+    },
+    {
+      "id": "q-009",
+      "question": "How does constructor overloading work in Java?",
+      "expected": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p12",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p13"
+      ],
+      "retrieved": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p12",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p13",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p11"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "java",
+        "oop"
+      ],
+      "note": ""
+    },
+    {
+      "id": "q-010",
+      "question": "What does a static variable do in a Java class?",
+      "expected": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p12",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p13",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p14"
+      ],
+      "retrieved": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p12",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p13",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p3",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p11"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "java",
+        "oop",
+        "static"
+      ],
+      "note": ""
+    },
+    {
+      "id": "q-011",
+      "question": "What is the difference between a default and a parameterized constructor?",
+      "expected": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p10",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p11"
+      ],
+      "retrieved": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p11",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p10",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p12",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p13"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "java",
+        "oop",
+        "constructors"
+      ],
+      "note": ""
+    },
+    {
+      "id": "q-012",
+      "question": "How do I calculate a student's grade using a switch-case in Java?",
+      "expected": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p6",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p7"
+      ],
+      "retrieved": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p7",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p6",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p8",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p11"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "java",
+        "control-flow"
+      ],
+      "note": ""
+    },
+    {
+      "id": "q-013",
+      "question": "How do I find the sum of digits of a number in Java?",
+      "expected": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p8",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p9"
+      ],
+      "retrieved": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p8",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p9",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p3",
+        "MySQL Handbook#p32"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "java",
+        "loops"
+      ],
+      "note": ""
+    },
+    {
+      "id": "q-014",
+      "question": "Which loop runs at least once even if the condition is false?",
+      "expected": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p9"
+      ],
+      "retrieved": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p9",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p8",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p6",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p3",
+        "MySQL Handbook#p23"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "java",
+        "loops",
+        "paraphrase"
+      ],
+      "note": "Passes at 0.615 with a thin margin over second place (0.564). Genuine paraphrase \u2014 the query shares almost no vocabulary with the source. Good candidate for measuring reranking gains in Phase 2."
+    }
+  ],
+  "dataset": "eval/datasets/golden.jsonl",
+  "git_sha": "a88d316"
+}

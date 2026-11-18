@@ -1,0 +1,666 @@
+{
+  "started_at": "2026-09-28T16:40:28+00:00",
+  "config": {
+    "embedding_model": "BAAI/bge-base-en-v1.5",
+    "chunk_size": 128,
+    "chunk_overlap": 64,
+    "top_k": 5,
+    "index_fingerprint": "BAAI/bge-base-en-v1.5:128:64"
+  },
+  "metrics": {
+    "hit_rate@5": 0.625,
+    "mrr": 0.59375,
+    "ndcg@10": 0.5723753493658833,
+    "precision@5": 0.278125,
+    "recall@5": 0.5833333333333334
+  },
+  "results": [
+    {
+      "id": "q-001",
+      "question": "How do I create a database in MySQL?",
+      "expected": [
+        "MySQL Handbook#p5"
+      ],
+      "retrieved": [
+        "MySQL Handbook#p5",
+        "MySQL Handbook#p2"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "mysql",
+        "rare-term"
+      ],
+      "note": "Failed under dense retrieval at chunk_size 512: the term appears once in 47k chars and lost to topically similar 'Create a User' pages. Fixed by reducing chunk_size to 200, not by hybrid retrieval."
+    },
+    {
+      "id": "q-002",
+      "question": "How do I create an index in MySQL?",
+      "expected": [
+        "MySQL Handbook#p64"
+      ],
+      "retrieved": [
+        "MySQL Handbook#p64",
+        "MySQL Handbook#p65"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "mysql"
+      ],
+      "note": "Passes. Dense score 0.755 at chunk_size 200."
+    },
+    {
+      "id": "q-003",
+      "question": "What are De Morgan's laws?",
+      "expected": [
+        "Anirudh_Arora_Practical_File#p7"
+      ],
+      "retrieved": [
+        "Anirudh_Arora_Practical_File#p7",
+        "Anirudh_Arora_Practical_File#p2",
+        "MySQL Handbook#p68",
+        "MySQL Handbook#p77"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "discrete-maths"
+      ],
+      "note": "Passes at chunk_size 200. Failed at 512, where page 7 content was absorbed into a chunk starting on page 5."
+    },
+    {
+      "id": "q-006",
+      "question": "How do I check if a string is a palindrome in Java?",
+      "expected": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p5"
+      ],
+      "retrieved": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p5",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p4",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p7"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "java",
+        "strings"
+      ],
+      "note": ""
+    },
+    {
+      "id": "q-007",
+      "question": "How do I find the maximum and minimum values in an array in Java?",
+      "expected": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p3"
+      ],
+      "retrieved": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p3",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p1",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p9"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "java",
+        "arrays"
+      ],
+      "note": ""
+    },
+    {
+      "id": "q-008",
+      "question": "What is Experiment 1 in the OOP lab file?",
+      "expected": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p2"
+      ],
+      "retrieved": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p1",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p10",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p4",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p8"
+      ],
+      "hit": 0.0,
+      "rr": 0.0,
+      "tags": [
+        "java",
+        "navigational",
+        "known-failure"
+      ],
+      "note": "Fails under dense, BM25, and hybrid retrieval. Predicted BM25 would fix it; it did not. BM25 scores terms independently, so 'Experiment 1' matches 'Experiment 3' plus any stray '1' equally well, and length normalisation then favours short chunks. Query stopword removal (9 tokens to 5) also changed nothing. Needs phrase or proximity matching, which neither retriever provides."
+    },
+    {
+      "id": "q-009",
+      "question": "How does constructor overloading work in Java?",
+      "expected": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p12",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p13"
+      ],
+      "retrieved": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p12",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p13",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p11"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "java",
+        "oop"
+      ],
+      "note": ""
+    },
+    {
+      "id": "q-010",
+      "question": "What does a static variable do in a Java class?",
+      "expected": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p12",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p13",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p14"
+      ],
+      "retrieved": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p12",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p13",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p3"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "java",
+        "oop",
+        "static"
+      ],
+      "note": ""
+    },
+    {
+      "id": "q-011",
+      "question": "What is the difference between a default and a parameterized constructor?",
+      "expected": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p10",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p11"
+      ],
+      "retrieved": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p11",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p10",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p13"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "java",
+        "oop",
+        "constructors"
+      ],
+      "note": ""
+    },
+    {
+      "id": "q-012",
+      "question": "How do I calculate a student's grade using a switch-case in Java?",
+      "expected": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p6",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p7"
+      ],
+      "retrieved": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p7",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p6",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p8"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "java",
+        "control-flow"
+      ],
+      "note": ""
+    },
+    {
+      "id": "q-013",
+      "question": "How do I find the sum of digits of a number in Java?",
+      "expected": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p8",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p9"
+      ],
+      "retrieved": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p8",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p9",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p3",
+        "MySQL Handbook#p7",
+        "MySQL Handbook#p32"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "java",
+        "loops"
+      ],
+      "note": ""
+    },
+    {
+      "id": "q-014",
+      "question": "Which loop runs at least once even if the condition is false?",
+      "expected": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p9"
+      ],
+      "retrieved": [
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p9",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p6",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p3",
+        "MySQL Handbook#p7"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "java",
+        "loops",
+        "paraphrase"
+      ],
+      "note": "Passes at 0.615 with a thin margin over second place (0.564). Genuine paraphrase: the query shares almost no vocabulary with the source."
+    },
+    {
+      "id": "q-015",
+      "question": "What is MySQL Workbench used for?",
+      "expected": [
+        "MySQL Handbook#p2"
+      ],
+      "retrieved": [
+        "MySQL Handbook#p2",
+        "MySQL Handbook#p5"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "mysql",
+        "literal"
+      ],
+      "note": ""
+    },
+    {
+      "id": "q-016",
+      "question": "How do I install MySQL Server on Ubuntu?",
+      "expected": [
+        "MySQL Handbook#p3"
+      ],
+      "retrieved": [
+        "MySQL Handbook#p2",
+        "MySQL Handbook#p3"
+      ],
+      "hit": 1.0,
+      "rr": 0.5,
+      "tags": [
+        "mysql",
+        "install"
+      ],
+      "note": ""
+    },
+    {
+      "id": "q-017",
+      "question": "How do I give a user full permissions on every database?",
+      "expected": [
+        "MySQL Handbook#p4"
+      ],
+      "retrieved": [
+        "MySQL Handbook#p5",
+        "MySQL Handbook#p11",
+        "MySQL Handbook#p2"
+      ],
+      "hit": 0.0,
+      "rr": 0.0,
+      "tags": [
+        "mysql",
+        "paraphrase",
+        "known-failure"
+      ],
+      "note": "Genuine miss. Page verified. Paraphrase: the handbook says 'privileges', the query says 'permissions'. Retrieval returns the adjacent install pages instead."
+    },
+    {
+      "id": "q-018",
+      "question": "How do I insert several rows at once instead of running one query per row?",
+      "expected": [
+        "MySQL Handbook#p11",
+        "MySQL Handbook#p12",
+        "MySQL Handbook#p13"
+      ],
+      "retrieved": [
+        "MySQL Handbook#p12",
+        "MySQL Handbook#p11",
+        "MySQL Handbook#p13",
+        "MySQL Handbook#p19"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "mysql",
+        "paraphrase"
+      ],
+      "note": "Paraphrase: handbook calls this 'bulk inserts'; the query describes the problem instead."
+    },
+    {
+      "id": "q-019",
+      "question": "How do I select every column from a table?",
+      "expected": [
+        "MySQL Handbook#p14"
+      ],
+      "retrieved": [
+        "MySQL Handbook#p8",
+        "MySQL Handbook#p7",
+        "MySQL Handbook#p55",
+        "MySQL Handbook#p54",
+        "MySQL Handbook#p9"
+      ],
+      "hit": 0.0,
+      "rr": 0.0,
+      "tags": [
+        "mysql",
+        "literal"
+      ],
+      "note": ""
+    },
+    {
+      "id": "q-020",
+      "question": "What are the two ways to write 'not equal to' in a MySQL WHERE clause?",
+      "expected": [
+        "MySQL Handbook#p15"
+      ],
+      "retrieved": [
+        "MySQL Handbook#p14",
+        "MySQL Handbook#p79",
+        "MySQL Handbook#p20"
+      ],
+      "hit": 0.0,
+      "rr": 0.0,
+      "tags": [
+        "mysql",
+        "literal"
+      ],
+      "note": ""
+    },
+    {
+      "id": "q-021",
+      "question": "How do I find rows where a column has no value at all?",
+      "expected": [
+        "MySQL Handbook#p16"
+      ],
+      "retrieved": [
+        "MySQL Handbook#p7",
+        "MySQL Handbook#p28",
+        "MySQL Handbook#p72"
+      ],
+      "hit": 0.0,
+      "rr": 0.0,
+      "tags": [
+        "mysql",
+        "paraphrase"
+      ],
+      "note": "Paraphrase: 'no value at all' never appears; the handbook says NULL."
+    },
+    {
+      "id": "q-022",
+      "question": "Which constraint stops a column from accepting duplicate values?",
+      "expected": [
+        "MySQL Handbook#p30"
+      ],
+      "retrieved": [
+        "MySQL Handbook#p26",
+        "MySQL Handbook#p27",
+        "MySQL Handbook#p28",
+        "MySQL Handbook#p25"
+      ],
+      "hit": 0.0,
+      "rr": 0.0,
+      "tags": [
+        "mysql",
+        "constraints",
+        "known-failure"
+      ],
+      "note": "Genuine miss. Page verified. Retrieval lands on the adjacent constraint pages (29, 28) but not the summary table on 30."
+    },
+    {
+      "id": "q-023",
+      "question": "How do I make MySQL generate the id automatically for each new row?",
+      "expected": [
+        "MySQL Handbook#p30"
+      ],
+      "retrieved": [
+        "MySQL Handbook#p43",
+        "MySQL Handbook#p77",
+        "MySQL Handbook#p29"
+      ],
+      "hit": 0.0,
+      "rr": 0.0,
+      "tags": [
+        "mysql",
+        "paraphrase"
+      ],
+      "note": ""
+    },
+    {
+      "id": "q-024",
+      "question": "What must be true of a PRIMARY KEY column?",
+      "expected": [
+        "MySQL Handbook#p29"
+      ],
+      "retrieved": [
+        "MySQL Handbook#p28",
+        "MySQL Handbook#p40",
+        "MySQL Handbook#p7",
+        "MySQL Handbook#p43"
+      ],
+      "hit": 0.0,
+      "rr": 0.0,
+      "tags": [
+        "mysql",
+        "constraints"
+      ],
+      "note": ""
+    },
+    {
+      "id": "q-025",
+      "question": "How do I calculate the total and average salary across all users?",
+      "expected": [
+        "MySQL Handbook#p32"
+      ],
+      "retrieved": [
+        "MySQL Handbook#p32",
+        "MySQL Handbook#p67",
+        "MySQL Handbook#p70",
+        "MySQL Handbook#p31"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "mysql",
+        "aggregates"
+      ],
+      "note": ""
+    },
+    {
+      "id": "q-026",
+      "question": "How do I count only the rows matching a condition?",
+      "expected": [
+        "MySQL Handbook#p31"
+      ],
+      "retrieved": [
+        "MySQL Handbook#p50",
+        "MySQL Handbook#p51",
+        "MySQL Handbook#p36",
+        "MySQL Handbook#p72"
+      ],
+      "hit": 0.0,
+      "rr": 0.0,
+      "tags": [
+        "mysql",
+        "aggregates",
+        "known-failure"
+      ],
+      "note": "Genuine miss. Page verified. Retrieval returns pages 51, 23, 50 \u2014 nowhere near. The query describes the intent without using the word COUNT."
+    },
+    {
+      "id": "q-027",
+      "question": "What is a foreign key and what does it guarantee?",
+      "expected": [
+        "MySQL Handbook#p45",
+        "MySQL Handbook#p49"
+      ],
+      "retrieved": [
+        "MySQL Handbook#p45",
+        "MySQL Handbook#p43",
+        "MySQL Handbook#p44"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "mysql",
+        "foreign-keys"
+      ],
+      "note": ""
+    },
+    {
+      "id": "q-028",
+      "question": "How do I remove a foreign key constraint from an existing table?",
+      "expected": [
+        "MySQL Handbook#p45"
+      ],
+      "retrieved": [
+        "MySQL Handbook#p45",
+        "MySQL Handbook#p48",
+        "MySQL Handbook#p42"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "mysql",
+        "foreign-keys"
+      ],
+      "note": ""
+    },
+    {
+      "id": "q-029",
+      "question": "How do I add a foreign key to a table that was already created?",
+      "expected": [
+        "MySQL Handbook#p46",
+        "MySQL Handbook#p48"
+      ],
+      "retrieved": [
+        "MySQL Handbook#p45",
+        "MySQL Handbook#p46",
+        "MySQL Handbook#p48",
+        "MySQL Handbook#p44"
+      ],
+      "hit": 1.0,
+      "rr": 0.5,
+      "tags": [
+        "mysql",
+        "foreign-keys"
+      ],
+      "note": ""
+    },
+    {
+      "id": "q-030",
+      "question": "What happens to child rows when I delete the parent row they point to?",
+      "expected": [
+        "MySQL Handbook#p47",
+        "MySQL Handbook#p48"
+      ],
+      "retrieved": [
+        "MySQL Handbook#p48",
+        "MySQL Handbook#p23",
+        "MySQL Handbook#p22",
+        "MySQL Handbook#p78"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "mysql",
+        "paraphrase",
+        "foreign-keys"
+      ],
+      "note": "Paraphrase: 'parent' and 'child' rows are terminology the handbook never uses."
+    },
+    {
+      "id": "q-031",
+      "question": "How do I delete a view?",
+      "expected": [
+        "MySQL Handbook#p63"
+      ],
+      "retrieved": [
+        "MySQL Handbook#p62",
+        "MySQL Handbook#p60",
+        "MySQL Handbook#p23",
+        "MySQL Handbook#p61",
+        "MySQL Handbook#p22"
+      ],
+      "hit": 0.0,
+      "rr": 0.0,
+      "tags": [
+        "mysql",
+        "views",
+        "known-failure"
+      ],
+      "note": "Genuine miss. Page verified. Retrieval returns 62 and 60 \u2014 the adjacent view chapters \u2014 but not the DROP VIEW page."
+    },
+    {
+      "id": "q-032",
+      "question": "Do views store a separate copy of the data?",
+      "expected": [
+        "MySQL Handbook#p63"
+      ],
+      "retrieved": [
+        "MySQL Handbook#p62",
+        "MySQL Handbook#p59",
+        "MySQL Handbook#p60",
+        "MySQL Handbook#p61"
+      ],
+      "hit": 0.0,
+      "rr": 0.0,
+      "tags": [
+        "mysql",
+        "views",
+        "paraphrase",
+        "known-failure"
+      ],
+      "note": "Genuine miss. Page verified. Same adjacency problem as q-031."
+    },
+    {
+      "id": "q-033",
+      "question": "What is the downside of adding indexes to a table?",
+      "expected": [
+        "MySQL Handbook#p65"
+      ],
+      "retrieved": [
+        "MySQL Handbook#p64",
+        "MySQL Handbook#p66",
+        "MySQL Handbook#p45"
+      ],
+      "hit": 0.0,
+      "rr": 0.0,
+      "tags": [
+        "mysql",
+        "indexes",
+        "tradeoffs",
+        "known-failure"
+      ],
+      "note": "Genuine miss. Page verified. Retrieval returns 64 and 66 \u2014 the pages either side of the answer. A near-miss of exactly the kind reranking should fix."
+    },
+    {
+      "id": "q-034",
+      "question": "Why might a query on salary alone fail to use an index built on gender and salary?",
+      "expected": [
+        "MySQL Handbook#p65"
+      ],
+      "retrieved": [
+        "MySQL Handbook#p65",
+        "MySQL Handbook#p66",
+        "MySQL Handbook#p64",
+        "MySQL Handbook#p67"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "mysql",
+        "indexes",
+        "multi-hop"
+      ],
+      "note": "Multi-hop: needs both the index definition and the order-matters explanation."
+    }
+  ],
+  "dataset": "eval/datasets/golden.jsonl",
+  "git_sha": "4cc867e"
+}

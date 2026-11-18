@@ -1,0 +1,80 @@
+{
+  "started_at": "2026-09-16T13:40:11+00:00",
+  "config": {
+    "embedding_model": "BAAI/bge-base-en-v1.5",
+    "chunk_size": 200,
+    "chunk_overlap": 64,
+    "top_k": 5,
+    "index_fingerprint": "BAAI/bge-base-en-v1.5:200:64"
+  },
+  "metrics": {
+    "hit_rate@5": 1.0,
+    "mrr": 0.8333333333333334,
+    "ndcg@10": 0.8769765845238192,
+    "precision@5": 0.2333333333333333,
+    "recall@5": 1.0
+  },
+  "results": [
+    {
+      "id": "q-001",
+      "question": "How do I create a database in MySQL?",
+      "expected": [
+        "MySQL Handbook#p5"
+      ],
+      "retrieved": [
+        "MySQL Handbook#p4",
+        "MySQL Handbook#p5",
+        "MySQL Handbook#p3",
+        "MySQL Handbook#p2"
+      ],
+      "hit": 1.0,
+      "rr": 0.5,
+      "tags": [
+        "mysql",
+        "rare-term"
+      ],
+      "note": "Dense retrieval currently misses this: the term appears once in 47k chars and loses to topically similar 'Create a User' pages."
+    },
+    {
+      "id": "q-002",
+      "question": "How do I create an index in MySQL?",
+      "expected": [
+        "MySQL Handbook#p64"
+      ],
+      "retrieved": [
+        "MySQL Handbook#p64",
+        "MySQL Handbook#p5",
+        "MySQL Handbook#p65",
+        "MySQL Handbook#p43"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "mysql"
+      ],
+      "note": "Currently passes at 0.755."
+    },
+    {
+      "id": "q-003",
+      "question": "What are De Morgan's laws?",
+      "expected": [
+        "Anirudh_Arora_Practical_File#p7"
+      ],
+      "retrieved": [
+        "Anirudh_Arora_Practical_File#p7",
+        "Anirudh_Arora_Practical_File#p1",
+        "Anirudh_Arora_Practical_File#p5",
+        "OOP_Lab_Practical_File_Anirudh_Arora_2581258#p12",
+        "MySQL Handbook#p68"
+      ],
+      "hit": 1.0,
+      "rr": 1.0,
+      "tags": [
+        "discrete-maths"
+      ],
+      "note": "Currently passes at 0.687."
+    }
+  ],
+  "dataset": "eval/datasets/golden.jsonl",
+  "git_sha": "e879e94"
+}
