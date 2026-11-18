@@ -74,10 +74,19 @@ export function ask(body: QueryRequest): Promise<QueryResponse> {
   });
 }
 
-export function search(question: string, topK = 5): Promise<SearchResponse> {
+/**
+ * `filters` narrows retrieval to a subset of the index — `{ source: "MySQL Handbook.pdf" }`
+ * searches only that document. The API passes it straight to Qdrant as a payload filter,
+ * so the keys are payload field names, not a query language.
+ */
+export function search(
+  question: string,
+  topK = 5,
+  filters: Record<string, unknown> | null = null,
+): Promise<SearchResponse> {
   return request<SearchResponse>("/search", {
     method: "POST",
-    body: JSON.stringify({ question, top_k: topK }),
+    body: JSON.stringify({ question, top_k: topK, filters }),
   });
 }
 

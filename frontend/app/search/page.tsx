@@ -19,6 +19,8 @@ type State =
 export default function SearchPage() {
   const [query, setQuery] = useState("");
   const [state, setState] = useState<State>({ kind: "idle" });
+  /** The one document to search, or null for the whole corpus. */
+  const [scope, setScope] = useState<string | null>(null);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -27,7 +29,7 @@ export default function SearchPage() {
 
     setState({ kind: "working" });
     try {
-      const response = await search(trimmed, 10);
+      const response = await search(trimmed, 10, scope === null ? null : { source: scope });
       setState({ kind: "done", hits: response.hits });
     } catch (error) {
       setState({
@@ -39,7 +41,7 @@ export default function SearchPage() {
 
   return (
     <div className="layout">
-      <Corpus />
+      <Corpus selected={scope} onSelect={setScope} />
       <div className="work">
       <form onSubmit={submit}>
         <div className="ask-field">
@@ -79,6 +81,17 @@ export default function SearchPage() {
           </button>
         </div>
       </form>
+
+      {scope !== null && (
+        <div className="scope">
+          <span>
+            Searching <strong>{scope}</strong> only.
+          </span>
+          <button type="button" className="link-button" onClick={() => setScope(null)}>
+            Use all documents
+          </button>
+        </div>
+      )}
 
       <p className="lede">
         Passages only, no answer written. This is exactly what the model would have been

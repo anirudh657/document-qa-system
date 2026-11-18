@@ -18,6 +18,8 @@ type State =
 export default function AskPage() {
   const [question, setQuestion] = useState("");
   const [state, setState] = useState<State>({ kind: "idle" });
+  /** The one document to answer from, or null for the whole corpus. */
+  const [scope, setScope] = useState<string | null>(null);
 
   const submit = useCallback(
     async (text: string) => {
@@ -27,12 +29,16 @@ export default function AskPage() {
       setQuestion(trimmed);
       setState({ kind: "working" });
 
+      // Applied to both calls, or the passage list underneath would be drawn from a
+      // wider corpus than the answer above it and the two would disagree.
+      const filters = scope === null ? null : { source: scope };
+
       try {
         // Both at once: /query returns only the passages the model cited, so showing
         // what it rejected — the part worth seeing — needs /search as well.
         const [result, searched] = await Promise.all([
-          ask({ question: trimmed }),
-          search(trimmed).catch(() => ({ query: trimmed, hits: [] })),
+          ask({ question: trimmed, filters }),
+          search(trimmed, 5, filters).catch(() => ({ query: trimmed, hits: [] })),
         ]);
         setState({ kind: "answered", result, hits: searched.hits });
       } catch (error) {
@@ -42,12 +48,12 @@ export default function AskPage() {
         });
       }
     },
-    [],
+    [scope],
   );
 
   return (
     <div className="layout">
-      <Corpus />
+      <Corpus selected={scope} onSelect={setScope} />
 
       <div className="work">
         <form
@@ -88,6 +94,17 @@ export default function AskPage() {
           </div>
         </form>
 
+        {scope !== null && (
+          <div className="scope">
+            <span>
+              Answering from <strong>{scope}</strong> only.
+            </span>
+            <button type="button" className="link-button" onClick={() => setScope(null)}>
+              Use all documents
+            </button>
+          </div>
+        )}
+
         <p className="lede">
           Answers are drawn only from the indexed documents, and every claim names the page
           it came from. When nothing supports an answer, this says so rather than guessing.
@@ -96,7 +113,9 @@ export default function AskPage() {
         <div aria-live="polite" aria-busy={state.kind === "working"}>
           {state.kind === "working" && <Working />}
           {state.kind === "failed" && <Failed error={state.error} />}
-          {state.kind === "answered" && <Answered result={state.result} hits={state.hits} />}
+          {state.kind === "answered" && (
+            <Answered result={state.result} hits={state.hits} scope={scope} />
+          )}
         </div>
       </div>
     </div>
@@ -145,15 +164,27 @@ function Failed({ error }: { error: ApiError }) {
   );
 }
 
-function Answered({ result, hits }: { result: QueryResponse; hits: SearchHit[] }) {
+function Answered({
+  result,
+  hits,
+  scope,
+}: {
+  result: QueryResponse;
+  hits: SearchHit[];
+  scope: string | null;
+}) {
   // A refusal is a correct outcome on a grounded system, so it carries the same weight
   // as an answer rather than an error treatment.
   if (!result.answered) {
     return (
       <section>
-        <p className="answer">That isn&rsquo;t in these documents.</p>
+        <p className="answer">
+          {scope === null ? "That isn’t in these documents." : `That isn’t in ${scope}.`}
+        </p>
         <p style={{ margin: "0 0 22px", fontSize: 14, lineHeight: 1.7, color: "var(--ink-soft)", maxWidth: "60ch" }}>
-          Nothing in the indexed corpus supports an answer, so this won&rsquo;t guess.
+          {scope === null
+            ? "Nothing in the indexed corpus supports an answer, so this won’t guess."
+            : "Nothing in that document supports an answer, so this won’t guess. It may be in one of the others — switch to all documents and ask again."}
         </p>
         {hits.length > 0 && (
           <details>

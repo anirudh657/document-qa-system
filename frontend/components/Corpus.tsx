@@ -12,24 +12,53 @@ type Upload =
   | { kind: "failed"; message: string };
 
 /**
- * The corpus rail: what is indexed, and how to add to it.
+ * The corpus rail: what is indexed, how to add to it, and which part of it to search.
  *
  * Present on every screen because it is the answer to the question a reader actually
  * has first — "what can I ask about?" — and because a document tool that does not show
  * its documents is asking people to guess.
+ *
+ * Passing `onSelect` turns the list into a scope picker: one document, or all of them.
+ * Without it the list is read-only, so a screen that has no use for scoping does not
+ * grow a control that does nothing.
  */
-export default function Corpus({ onChanged }: { onChanged?: () => void }) {
+export default function Corpus({
+  onChanged,
+  selected = null,
+  onSelect,
+}: {
+  onChanged?: () => void;
+  /** The source currently scoped to, or null for the whole corpus. */
+  selected?: string | null;
+  onSelect?: (source: string | null) => void;
+}) {
   const [documents, setDocuments] = useState<DocumentSummary[] | null>(null);
   const [total, setTotal] = useState(0);
   const [upload, setUpload] = useState<Upload>({ kind: "none" });
   const [dragging, setDragging] = useState(false);
   const input = useRef<HTMLInputElement>(null);
 
+  // Read through refs inside `refresh` so neither prop joins its dependency list.
+  // `onSelect` is usually an inline arrow, so a new identity on every parent render
+  // would re-create `refresh`, re-fire the effect below, and refetch forever.
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
+  const onSelectRef = useRef(onSelect);
+  onSelectRef.current = onSelect;
+
   const refresh = useCallback(async () => {
     try {
       const list = await listDocuments();
       setDocuments(list.documents);
       setTotal(list.total_chunks);
+
+      // A scope pointing at a document that is no longer indexed filters every query
+      // down to nothing, and the screen just stops answering with no reason given.
+      // Drop it instead.
+      const scope = selectedRef.current;
+      if (scope !== null && !list.documents.some((doc) => doc.source === scope)) {
+        onSelectRef.current?.(null);
+      }
     } catch {
       // The rail is context, not the task. A failed listing must not take the page down.
       setDocuments([]);
@@ -68,6 +97,8 @@ export default function Corpus({ onChanged }: { onChanged?: () => void }) {
   );
 
   const busy = upload.kind === "busy";
+  const pickable = typeof onSelect === "function";
+  const hasDocuments = documents !== null && documents.length > 0;
 
   return (
     <aside className="rail">
@@ -85,17 +116,55 @@ export default function Corpus({ onChanged }: { onChanged?: () => void }) {
         {documents?.length === 0 && (
           <li className="doc-empty">Nothing indexed yet. Add a document below.</li>
         )}
-        {documents?.map((doc) => (
-          <li key={doc.source} className="doc">
-            <span className="doc-name" title={doc.source}>
-              {doc.source}
-            </span>
-            <span className="mono doc-meta">
-              {doc.pages}p · {doc.chunks}
-            </span>
+
+        {/* An explicit "all" row rather than a hidden toggle: the scope is always
+            visible, and clearing it is the same gesture as setting it. */}
+        {pickable && hasDocuments && (
+          <li>
+            <button
+              type="button"
+              className={`doc-pick ${selected === null ? "is-selected" : ""}`}
+              aria-pressed={selected === null}
+              onClick={() => onSelect?.(null)}
+            >
+              <span className="doc-name">All documents</span>
+              <span className="mono doc-meta">{total}</span>
+            </button>
           </li>
-        ))}
+        )}
+
+        {documents?.map((doc) =>
+          pickable ? (
+            <li key={doc.source}>
+              <button
+                type="button"
+                className={`doc-pick ${selected === doc.source ? "is-selected" : ""}`}
+                aria-pressed={selected === doc.source}
+                title={doc.source}
+                onClick={() => onSelect?.(selected === doc.source ? null : doc.source)}
+              >
+                <span className="doc-name">{doc.source}</span>
+                <span className="mono doc-meta">
+                  {doc.pages}p · {doc.chunks}
+                </span>
+              </button>
+            </li>
+          ) : (
+            <li key={doc.source} className="doc">
+              <span className="doc-name" title={doc.source}>
+                {doc.source}
+              </span>
+              <span className="mono doc-meta">
+                {doc.pages}p · {doc.chunks}
+              </span>
+            </li>
+          ),
+        )}
       </ul>
+
+      {pickable && hasDocuments && (
+        <p className="pick-hint">Pick one to search just that document.</p>
+      )}
 
       {/* A real <input type="file"> does the work; the drop zone is a label for it, so
           keyboard and click both reach it without a synthetic handler. */}

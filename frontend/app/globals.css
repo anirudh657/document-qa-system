@@ -217,6 +217,44 @@ a {
   color: var(--muted);
 }
 
+/* A selectable document row. A real <button>, so Tab and Enter reach it and the
+   pressed state is announced, rather than a <div> with a click handler. */
+.doc-pick {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+  padding: 8px 8px 8px 9px;
+  font: inherit;
+  text-align: left;
+  color: var(--ink);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--rule);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.doc-pick:hover {
+  background: var(--surface-soft);
+}
+
+/* The bar carries the state, not colour alone, so it survives a greyscale print
+   and does not depend on the reader telling two warm neutrals apart. */
+.doc-pick.is-selected {
+  background: var(--surface);
+  box-shadow: inset 2.5px 0 0 var(--ink);
+  font-weight: 600;
+}
+
+.pick-hint {
+  margin: 0 0 16px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--faint);
+}
+
 .drop {
   display: flex;
   align-items: center;
@@ -346,6 +384,42 @@ a {
   font-size: 13px;
   color: var(--muted);
   line-height: 1.55;
+}
+
+/* Shown only while retrieval is narrowed to one document. It states the scope in
+   words next to the way out of it, because a filter you cannot see is a bug report
+   waiting to happen. */
+.scope {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin-top: 12px;
+  padding: 10px 13px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 2.5px solid var(--ink);
+  border-radius: var(--radius);
+}
+
+.link-button {
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--muted);
+  background: none;
+  border: none;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.link-button:hover {
+  color: var(--ink);
 }
 
 /* --- answer --------------------------------------------------------------- */
